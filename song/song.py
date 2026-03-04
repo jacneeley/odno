@@ -1,6 +1,7 @@
 import datetime
 
 class Song:
+    #TODO: add genre
     def __init__(self, title:str, artist:str, album_artist:str, album:str, cd:int, year:datetime, track_num:int, cover:str):
         self.title = title
         self.artist = artist
