@@ -121,16 +121,18 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
     ffmpeg_meta_cmd = ""
     
     ftype = file.split(".")[-1]
+    is_mp3 = True if ftype == "mp3" else False
+    
     parent_dir = os.path.join(os.path.dirname(path), tmp_dir)
     source_file = os.path.join(os.path.dirname(parent_dir), file)
     title = f'{"".join(e for e in song.title if e.isalnum())}.{ftype}'
     dest_file = os.path.join(path, title)
     
-    mp3_title = f'{title.split(".")[0]}.mp3'
-    og = os.path.join(path, mp3_title)
+    new_mp3_title = f'{title.split(".")[0]}.mp3'
 
     cp_cmd = f'cp {source_file} {dest_file}'
-    final_mp3_file = os.path.join(dest_file.split(title)[0] , f'{song.track_num}_{mp3_title}')
+    og = os.path.join(path, new_mp3_title) if not is_mp3 else dest_file
+    final_mp3_file = os.path.join(dest_file.split(title)[0] , f'{song.track_num}_{new_mp3_title}')
     
     convert = f'ffmpeg -i {source_file} -codec:a libmp3lame -b:a {bit_rate}k {og}'
 
@@ -145,8 +147,9 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
         print(cp_cmd, "\n") if debug else ""
         subprocess.run([cp_cmd], shell=True, check=False)
         
-        print(convert, "\n") if debug else ""
-        subprocess.run([convert], shell=True, check = False)
+        if not is_mp3:
+            print(convert, "\n") if debug else ""
+            subprocess.run([convert], shell=True, check = False)
         
         print(ffmpeg_meta_cmd, "\n") if debug else ""
         subprocess.run([ffmpeg_meta_cmd], shell=True, check = False)
@@ -183,7 +186,7 @@ def save_album_metadata(debug:bool) -> bool:
             
             dir_list = os.listdir(path)
             sort_tracks(dir_list)
-
+            
             os.mkdir(tmp)
 
             if debug:
