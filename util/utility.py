@@ -1,3 +1,5 @@
+import os
+import sys
 import datetime
 import subprocess
 
@@ -12,17 +14,40 @@ def convert_date_str(date_time:str):
     return datetime.datetime.strptime(date_time, "%Y-%m-%d")
 
 def sort_tracks(track_list:list[str]) -> None:
-    n = len(track_list)
-    for i in range(n):
-        swapped = False
-        for j in range(0, n - i - 1):
-            curr = int(track_list[j].split(".")[0].replace("track",""))
-            next = int(track_list[j + 1].split(".")[0].replace("track",""))
-            if curr > next:
-                track_list[j], track_list[j + 1] = track_list[j + 1].strip() , track_list[j].strip()
-                swapped = True
-        if not swapped:
-            break
+    for i in range(len(track_list)):
+        if "cover" in track_list[i]:
+            del track_list[i]
+            break 
+
+    counter = 0
+    for i in track_list:
+        if i.split(".")[0].isalpha():
+            counter += 1
+    
+    is_all_alpha = counter == len(track_list)
+    
+    if is_all_alpha:
+        print("\nerror: files in track list need to have a numeric order")
+        print("recommended file name format: <tracknum>_<filename>.<filetype>\nor\n<track><tracknum>.<filetype>") 
+        print("\nexample:\n6_MyFriendGoo.mp3\nOR\ntrack1.wav")
+        sys.exit()
+
+    else:
+        n = len(track_list)
+        for i in range(n):
+            swapped = False
+            for j in range(0, n - i - 1):
+                curr = 0
+                nxt = 0
+
+                curr = int(track_list[j].split("_")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
+                nxt = int(track_list[j + 1].split("_")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
+                
+                if curr > nxt:
+                    track_list[j], track_list[j + 1] = track_list[j + 1].strip() , track_list[j].strip()
+                    swapped = True
+            if not swapped:
+                break
 
 def get_bit_rate() -> int:
     print("Select an mp3 bit rate:")
@@ -45,7 +70,9 @@ def get_bit_rate() -> int:
         return get_bit_rate()
     
 def remove_wavs(path:str) -> None:
-    rm_wav = input("remove duplicate .wavs?\nthis will remove WAVs in the tmp 'album' folder only. Original WAVs from will be preserved.\nremove(y/n)? ")
-    if rm_wav == "y":
-        subprocess.call(f"rm {path}/*.wav" , shell=True)
-        # subprocess.call("rm *.mp3", shell=debug)
+    items = os.listdir(path)
+    if ".wav" in items:
+        rm_wav = input("remove duplicate .wavs?\nthis will remove WAVs in the tmp 'album' folder only. Original WAVs from will be preserved.\nremove(y/n)? ")
+        if rm_wav == "y":
+            subprocess.call(f"rm {path}/*.wav" , shell=True)
+            # subprocess.call("rm *.mp3", shell=debug)
