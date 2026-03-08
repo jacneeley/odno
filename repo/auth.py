@@ -1,8 +1,22 @@
-import os
+import requests
 
 import spotipy
+import discogs_client
 
-def auth_user() -> spotipy.Spotify:
+def auth_user() -> discogs_client.Client:
+    d = discogs_client.Client("cdripper/0.1", user_token="IePlcbMaNoymidLnPHyiplctuYnaroffXRDKUWmB")
+    return d
+
+def get_album(query:str) -> dict:
+    master_id = auth_user().search(query=query, type="release")[0].data['master_id']
+
+    resp:requests.Response = requests.get(f"https://api.discogs.com/masters/{master_id}", timeout=20)
+    return resp.json()
+
+def auth_user_spotify() -> spotipy.Spotify:
+    '''
+        TODO: delete. Fuck you spotify.
+    '''
     # path = os.path.abspath("some/path")
     creds = spotipy.CLIENT_CREDS_ENV_VARS
     creds["client_id"] = "7e0d5b6081474ed2b6e6fa8b6910add4"
@@ -15,13 +29,9 @@ def auth_user() -> spotipy.Spotify:
 
 if __name__ == "__main__":
     print("testing connection with supplied client_id & client_secret...")
-    
-    test = auth_user().search(
-        q="daydream+nation+sonic+youth",
-        limit=1,
-        offset=0,
-        type="album",
-        market="US"
-    )
+    # test = auth_user().search("Daydream Nation by Sonic Youth", type="release")
+    # results = test[0].data
+    # print(results, results['master_id'])
 
-    print(test)
+    # r = auth_user().release(results['master_id'])
+    print(get_album("daydream nation by sonic youth"))

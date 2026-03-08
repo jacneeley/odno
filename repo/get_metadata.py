@@ -1,10 +1,10 @@
-import os
+import os, sys
 import requests
 import subprocess
 
-from repo.auth import auth_user
+from repo.auth import get_album
 from song.song import Song
-from util.utility import convert_date_str, sort_tracks, get_bit_rate, remove_wavs
+from util.utility import sort_tracks, get_bit_rate, remove_wavs
 
 tmp_dir = "MP3_ALBUM"
 
@@ -13,7 +13,7 @@ def check_album(album:dict) -> dict:
         Helper function to get album metadata from Spotify.search() and display album, artist, & release date.
 
         parameters:
-            * album -> JSON object from Spotify.search()
+            * album -> JSON object from discogs_client.Client(*args).search()
     '''
 
     tmp = {
@@ -22,36 +22,83 @@ def check_album(album:dict) -> dict:
         "release_date": ""
     }
 
-    tmp["album"] = album['albums']['items'][0]['name']
-    tmp['artist'] = album['albums']['items'][0]['artists'][0]['name']
-    tmp["release_date"] = album['albums']['items'][0]['release_date']
-
+    tmp["album"] = album['title']
+    tmp['artist'] = album['artists'][0]['name']
+    tmp["release_date"] = album['year']
+    
     print(
         "album:",   tmp['album']           +"\n",
         "artist:",  tmp['artist']          +"\n",
-        "release:", tmp['release_date']    +"\n"
+        "release:", str(tmp['release_date'])    +"\n"
     )
 
     return tmp
 
-def get_album_from_spotify(album_name:str, debug:bool) -> list[Song]:
-    '''
-        search for an album using the spotify api and get the metadata for each track.
+# def get_album_from_spotify(album_name:str, debug:bool) -> list[Song]:
+#     '''
+#         search for an album using the spotify api and get the metadata for each track.
 
-        returns a list of Songs -> list[Song]
+#         returns a list of Songs -> list[Song]
 
-        parameters:
-            * album_name: name of the album used to search for.
-    '''
-    #TODO: refactor to use a different API. Spotify will end free access to API later in March.
+#         parameters:
+#             * album_name: name of the album used to search for.
+#     '''
+#     #TODO: refactor to use a different API. Spotify will end free access to API later in March.
 
-    resp:dict = auth_user().search(
-        q=album_name,
-        limit=5,
-        offset=0,
-        type="album",
-        market="US"
-    )
+#     resp:dict = auth_user().search(
+#         q=album_name,
+#         limit=5,
+#         offset=0,
+#         type="album",
+#         market="US"
+#     )
+
+#     tracks:list[Song] = []
+
+#     album = check_album(resp)
+
+#     q:str = input("is the above correct (y/n)? ")
+#     if q.lower() == "y":
+#         album_id = resp['albums']['items'][0]['id']
+#         album_cover = resp['albums']['items'][0]['images'][1]['url']
+
+#         album_tracks = auth_user().album_tracks(
+#             album_id=album_id,
+#             market="US"
+#         )
+
+#         print("getting album metadata...\n")
+ 
+#         for t in album_tracks['items']:
+#             song = Song(
+#                 t['name'],
+#                 album['artist'],
+#                 album['artist'],
+#                 album['album'],
+#                 int(t['disc_number']),
+#                 convert_date_str(album['release_date']),
+#                 int(t['track_number']),
+#                 album_cover
+#             )
+
+#             tracks.append(song)
+
+#             if debug:
+#                 print("response:", resp)
+#                 print()
+#                 print("album tracks:",album_tracks)
+#                 print()
+#                 print("album items:",t)
+#                 break
+        
+#         return tracks
+
+#     else:
+#         print("done.")
+#         quit()
+
+def get_album_from_repo(album_query:str, debug:bool) -> list[Song]:
+    resp:dict = get_album(album_query)
 
     tracks:list[Song] = []
 
@@ -59,43 +106,33 @@ def get_album_from_spotify(album_name:str, debug:bool) -> list[Song]:
 
     q:str = input("is the above correct (y/n)? ")
     if q.lower() == "y":
-        album_id = resp['albums']['items'][0]['id']
-        album_cover = resp['albums']['items'][0]['images'][1]['url']
-
-        album_tracks = auth_user().album_tracks(
-            album_id=album_id,
-            market="US"
-        )
-
         print("getting album metadata...\n")
- 
-        for t in album_tracks['items']:
+
+        album_cover = resp['images'][0]['uri']
+        genre = resp['styles'][0] if len(resp['styles']) > 1 else resp['genres'][0]
+
+        l = len(resp['tracklist'])
+        for t in range(l):
             song = Song(
-                t['name'],
-                album['artist'],
-                album['artist'],
-                album['album'],
-                int(t['disc_number']),
-                convert_date_str(album['release_date']),
-                int(t['track_number']),
-                album_cover
+                title=resp["tracklist"][t]['title'],
+                artist=album['artist'],
+                album_artist=album['artist'],
+                album=album['album'],
+                cd = 1,
+                genre=genre,
+                year=resp['year'],
+                track_num= t + 1,
+                cover = album_cover
             )
 
             tracks.append(song)
 
-            if debug:
-                print("response:", resp)
-                print()
-                print("album tracks:",album_tracks)
-                print()
-                print("album items:",t)
-                break
-        
+        if debug:
+            print("response:", resp)
         return tracks
-
-    else:
-        print("done.")
-        quit()
+    
+    print("quitting.")
+    sys.exit()
 
 def get_album_image(path:str, album_url:str) -> bool:
     with open(os.path.join(path,"cover.jpg"), "wb") as image:
@@ -106,7 +143,7 @@ def get_album_image(path:str, album_url:str) -> bool:
         
         for img in data.iter_content(1024):
             if not img:
-                print(f'failed to get image from server - error: data chunk came back None')
+                print('failed to get image from server - error: data chunk came back None')
                 return False
             
             image.write(img)
@@ -165,7 +202,12 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
 
 def save_album_metadata(debug:bool) -> bool:
     '''
+        Consume user provided file path to prepare metadata for target album.
 
+        Album directory should follow: "some/path/to/album_name-artist_name"
+
+        parameters:
+            *debug -> boolean show console output.
     '''
 
     print("For best results, make sure album folders match the following: album_name-artist_name.\n")
@@ -176,7 +218,7 @@ def save_album_metadata(debug:bool) -> bool:
     try:
         if os.path.exists(path) and os.path.isdir(path):
             album_name = path.split("/")[-1]
-            album_name = album_name.replace("-", "+").replace("_", "+").replace(" ","+")
+            album_name = album_name.replace("-", " by ").replace("_", " ")
 
             print("searching for:",album_name)            
             
@@ -192,7 +234,7 @@ def save_album_metadata(debug:bool) -> bool:
             if debug:
                 print("\ntrack list:",dir_list)
 
-            tracks = get_album_from_spotify(album_name, False)
+            tracks = get_album_from_repo(album_name, False)
 
             bit_rate = get_bit_rate()
 
@@ -217,14 +259,13 @@ def save_album_metadata(debug:bool) -> bool:
         return False
 
 if __name__ == "__main__":
-    # query:str = "daydream+nation+sonic+youth"
+    query:str = "daydream nation by sonic youth"
 
-    # print("testing with", query.replace("+", " "))
-
-    # tracks:list[Song] = get_album_from_spotify(query, True)
+    tracks:list[Song] = get_album_from_repo(query, True)
     # print(tracks)
 
-    # for t in tracks:
-    #     print(t)
+    print("\n\ntracks:")
+    for t in tracks:
+        print(t)
 
-    save_album_metadata(True)
+    # save_album_metadata(True)
