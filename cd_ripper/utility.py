@@ -10,10 +10,22 @@ def convert_date_str(date_time:str):
         parameters:
             * date_time -> str date to convert to datetime.
     '''
+    if len(date_time.split("-")) < 3:
+        return datetime.datetime.strptime(date_time, "%Y-%m")
+    
+    if len(date_time) == 4:
+        return datetime.datetime.strptime(datetime, "%Y")
 
     return datetime.datetime.strptime(date_time, "%Y-%m-%d")
 
 def sort_tracks(track_list:list[str]) -> None:
+    '''
+        Sort tracks from track_list using bubble sort.
+
+        parameters:
+            * track_list -> list of tracks in album directory.
+    '''
+
     for i in range(len(track_list)):
         if "cover" in track_list[i]:
             del track_list[i]
@@ -40,8 +52,13 @@ def sort_tracks(track_list:list[str]) -> None:
                 curr = 0
                 nxt = 0
 
-                curr = int(track_list[j].split("_")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
-                nxt = int(track_list[j + 1].split("_")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
+                if "-" in track_list[j]:
+                    curr = int(track_list[j].split("-")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
+                    nxt = int(track_list[j + 1].split("-")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
+
+                elif "_" in track_list[j]:
+                    curr = int(track_list[j].split("_")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
+                    nxt = int(track_list[j + 1].split("_")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
                 
                 if curr > nxt:
                     track_list[j], track_list[j + 1] = track_list[j + 1].strip() , track_list[j].strip()
@@ -50,9 +67,13 @@ def sort_tracks(track_list:list[str]) -> None:
                 break
 
 def get_bit_rate() -> int:
+    '''
+        prompt user to make a bit rate selection.
+    '''
+
     print("Select an mp3 bit rate:")
     print("Smaller bit rate = less fidelity but smaller file size.\n192kb is recommended")
-    print("1. 64\n2. `128\n,3. 192\n,4. 256\n5. 320")
+    print("1. 64\n2. 128\n3. 192\n4. 256\n5. 320")
     
     selection = int(input("make a selection: "))
     if selection == 1:
@@ -70,6 +91,13 @@ def get_bit_rate() -> int:
         return get_bit_rate()
     
 def remove_wavs(path:str) -> None:
+    '''
+        prompt the user if they wish to remove the original wav files from the rip.
+
+        parameters:
+            * path -> location of the wav files.
+    '''
+
     items = os.listdir(path)
     if ".wav" in items:
         rm_wav = input("remove duplicate .wavs?\nthis will remove WAVs in the tmp 'album' folder only. Original WAVs from will be preserved.\nremove(y/n)? ")

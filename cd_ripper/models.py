@@ -1,5 +1,10 @@
+import datetime
+
 class Song:
-    def __init__(self, title:str, artist:str, album_artist:str, album:str, cd:int, genre:str, year:int, track_num:int, cover:str):
+    '''
+        Model-Object representing audio file in an album.
+    '''
+    def __init__(self, title:str, artist:str, album_artist:str, album:str, cd:int, genre:str, year:datetime, track_num:int, cover:str):
         self.title = title
         self.artist = artist
         self.album_artist = album_artist
