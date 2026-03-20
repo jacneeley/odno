@@ -4,10 +4,10 @@ import subprocess
 
 from collections import deque
 
-from cd_ripper.fetcher import get_album_discogs, get_album_lastfm, fetch_date_from_music_brainz
-from cd_ripper.models import Song
-from cd_ripper.utility import sort_tracks, get_bit_rate, remove_wavs
-from cd_ripper.prompts import wow_niche, save_metadata_ffmpeg, convert_to_mp3_with_selected_bitrate, clean_up, copy_to_temp
+from src.fetcher import get_album_discogs, get_album_lastfm, fetch_date_from_music_brainz
+from src.models import Song
+from src.utility import sort_tracks, get_bit_rate, remove_wavs
+from src.prompts import wow_niche, save_metadata_ffmpeg, convert_to_mp3_with_selected_bitrate, clean_up, copy_to_temp
 
 TMP_DIR = "MP3_ALBUM"
 
