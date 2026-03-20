@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 import discogs_client
 from scripts.globals import load_env, DISCOGS_URL, DISCOGS_USER_TOKEN, LASTFM_KEY, LASTFM_URL, MUSIC_BRAINZ_URL
-from cd_ripper.utility import convert_date_str
+from src.utility import convert_date_str
 
 if not load_env():
     print("failed to load env vars...")

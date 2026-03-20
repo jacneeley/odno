@@ -1,4 +1,4 @@
-from cd_ripper.models import Song
+from src.models import Song
 
 def wow_niche() -> None:
     '''

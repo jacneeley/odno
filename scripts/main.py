@@ -1,4 +1,4 @@
-from cd_ripper.handle_metadata import save_album_metadata
+from src.handle_metadata import save_album_metadata
 
 def app() -> None:
     '''
