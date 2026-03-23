@@ -6,6 +6,36 @@ def wow_niche() -> None:
     '''
     print("Wow, you are niche.\nThe album you are looking for could not be found on lastfm.\nTry refining your search.")
 
+def rm_wav_prompt():
+    return input("remove duplicate .wavs?\nthis will remove WAVs in the tmp 'album' folder only. Original WAVs from will be preserved.\nremove(y/n)? ")
+
+def get_bit_rate() -> int:
+    '''
+        prompt user to make a bit rate selection.
+    '''
+
+    print("Select an mp3 bit rate:")
+    print("Smaller bit rate = less fidelity but smaller file size.\n192kb is recommended")
+    print("1. 64\n2. 128\n3. 192\n4. 256\n5. 320")
+    
+    selection = int(input("make a selection: "))
+    if selection == 1:
+        return 64
+    elif selection == 2:
+        return 128
+    elif selection == 3:
+        return 192
+    elif selection == 4:
+        return 256
+    elif selection == 5:
+        return 320
+    else:
+        print("invalid selection.\nTry again.")
+        return get_bit_rate()
+
+def bad_file_names():
+    print("\nError: Files in track list need to have a numeric order.\n\nRecommended file name format: <tracknum>_<filename>.<filetype>\nor\n<track><tracknum>.<filetype>\n\nexample:\n6_MyFriendGoo.mp3\nOR\ntrack1.wav")
+
 
 #####################
 ### unix commands ###
