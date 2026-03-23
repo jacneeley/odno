@@ -4,10 +4,11 @@ import subprocess
 
 from collections import deque
 
-from src.fetcher import get_album_discogs, get_album_lastfm, fetch_date_from_music_brainz
+import src.fetcher as fetcher
+import src.utility as util
+import src.prompts as prompts
+
 from src.models import Song
-from src.utility import sort_tracks, get_bit_rate, remove_wavs
-from src.prompts import wow_niche, save_metadata_ffmpeg, convert_to_mp3_with_selected_bitrate, clean_up, copy_to_temp
 
 TMP_DIR = "MP3_ALBUM"
 
@@ -28,7 +29,7 @@ def check_album(album:dict, platform:str) -> dict:
         mbid = album['album']['mbid']
         tmp["album"] = album['album']['name']
         tmp['artist'] = album['album']['artist']
-        tmp["release_date"] =  fetch_date_from_music_brainz(mbid,False)
+        tmp["release_date"] =  fetcher.fetch_date_from_music_brainz(mbid,False)
     
     elif platform == "DISCOGS":
         tmp["album"] = album['title']
@@ -133,7 +134,7 @@ def manual_search() -> list[Song]:
         album_name = input("enter album name: ")
 
         print(f"\n searching for {album_name} by {artist_name}")
-        resp = get_album_lastfm(artist_name, album_name, True)
+        resp = fetcher.get_album_lastfm(artist_name, album_name, True)
 
         album = check_album(resp, "LASTFM")
 
@@ -141,7 +142,7 @@ def manual_search() -> list[Song]:
         if q.lower() == "y":
             return get_album_data_from_lastfm(album, resp, True)
 
-        wow_niche()
+        prompts.wow_niche()
         return []
 
     return []
@@ -161,7 +162,7 @@ def get_album_from_repo(album_query:str, debug:bool) -> list[Song]:
     artist_str = query[-1].replace(" ", "+").replace("_","+")
     album_str = query[0].replace(" ", "+").replace("_", "+")
     
-    resp = get_album_lastfm(artist_str, album_str, debug)
+    resp = fetcher.get_album_lastfm(artist_str, album_str, debug)
     
     print(f"\nsearching for {album_query}.")
     album = check_album(resp, "LASTFM")
@@ -175,7 +176,7 @@ def get_album_from_repo(album_query:str, debug:bool) -> list[Song]:
         q = input("try again (y/n)? ")
         if q.lower() == "y":
             album_query = album_query.replace("-", " by ").replace("_", " ")
-            resp = get_album_discogs(album_query)
+            resp = fetcher.get_album_discogs(album_query)
             album = check_album(resp, "DISCOGS")
             
             q = input("is the above correct (y/n)?")
@@ -245,20 +246,20 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
         og = os.path.join(path, new_mp3_title) if not is_mp3 else dest_file
         final_mp3_file = os.path.join(dest_file.split(title)[0] , f'{song.track_num}_{new_mp3_title}')
 
-        cp_cmd = copy_to_temp(source_file, dest_file)
+        cp_cmd = prompts.copy_to_temp(source_file, dest_file)
         print(cp_cmd, "\n") if debug else ""
         subprocess.run([cp_cmd], shell=True, check=False)
 
         if not is_mp3:
-            convert = convert_to_mp3_with_selected_bitrate(source_file, bit_rate, og)
+            convert = prompts.convert_to_mp3_with_selected_bitrate(source_file, bit_rate, og)
             print(convert, "\n") if debug else print()
             subprocess.run([convert], shell=True, check = False)
 
-        ffmpeg_meta_cmd = save_metadata_ffmpeg(is_saved, og, parent_dir, song, final_mp3_file)
+        ffmpeg_meta_cmd = prompts.save_metadata_ffmpeg(is_saved, og, parent_dir, song, final_mp3_file)
         print(ffmpeg_meta_cmd, "\n") if debug else print()
         subprocess.run([ffmpeg_meta_cmd], shell=True, check = False)
 
-        rm_cmd = clean_up(og)
+        rm_cmd = prompts.clean_up(og)
         print(rm_cmd,"\n") if debug else print()
         subprocess.run([f'rm {og}'], shell=True, check=False)
     
@@ -301,7 +302,7 @@ def save_album_metadata(debug:bool) -> bool:
             subprocess.call(f"rm -r {tmp}",shell=True)
         
         dir_list = os.listdir(path)
-        sort_tracks(dir_list)
+        util.sort_tracks(dir_list)
 
         dir_list = deque(dir_list)
 
@@ -316,7 +317,7 @@ def save_album_metadata(debug:bool) -> bool:
             if len(tracks) == 0:
                 return False
 
-        bit_rate = get_bit_rate()
+        bit_rate = prompts.get_bit_rate()
 
         is_saved = False
         for i in tracks:
@@ -330,7 +331,7 @@ def save_album_metadata(debug:bool) -> bool:
                 break
     
     if success:
-        remove_wavs(tmp)
+        util.remove_wavs(tmp)
 
     return success
 

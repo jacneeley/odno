@@ -3,6 +3,8 @@ import sys
 import datetime
 import subprocess
 
+import src.prompts as prompts
+
 def convert_date_str(date_time:str):
     '''
         helper function to return date string as a datetime.
@@ -39,9 +41,7 @@ def sort_tracks(track_list:list[str]) -> None:
     is_all_alpha = counter == len(track_list)
     
     if is_all_alpha:
-        print("\nerror: files in track list need to have a numeric order")
-        print("recommended file name format: <tracknum>_<filename>.<filetype>\nor\n<track><tracknum>.<filetype>") 
-        print("\nexample:\n6_MyFriendGoo.mp3\nOR\ntrack1.wav")
+        prompts.bad_file_names()
         sys.exit()
 
     else:
@@ -72,30 +72,6 @@ def sort_tracks(track_list:list[str]) -> None:
                     swapped = True
             if not swapped:
                 break
-
-def get_bit_rate() -> int:
-    '''
-        prompt user to make a bit rate selection.
-    '''
-
-    print("Select an mp3 bit rate:")
-    print("Smaller bit rate = less fidelity but smaller file size.\n192kb is recommended")
-    print("1. 64\n2. 128\n3. 192\n4. 256\n5. 320")
-    
-    selection = int(input("make a selection: "))
-    if selection == 1:
-        return 64
-    elif selection == 2:
-        return 128
-    elif selection == 3:
-        return 192
-    elif selection == 4:
-        return 256
-    elif selection == 5:
-        return 320
-    else:
-        print("invalid selection.\nTry again.")
-        return get_bit_rate()
     
 def remove_wavs(path:str) -> None:
     '''
@@ -107,7 +83,7 @@ def remove_wavs(path:str) -> None:
 
     items = os.listdir(path)
     if ".wav" in items:
-        rm_wav = input("remove duplicate .wavs?\nthis will remove WAVs in the tmp 'album' folder only. Original WAVs from will be preserved.\nremove(y/n)? ")
+        rm_wav = prompts.rm_wav_prompt()
         if rm_wav == "y":
             subprocess.call(f"rm {path}/*.wav" , shell=True)
             # subprocess.call("rm *.mp3", shell=debug)
