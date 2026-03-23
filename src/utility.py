@@ -10,11 +10,11 @@ def convert_date_str(date_time:str):
         parameters:
             * date_time -> str date to convert to datetime.
     '''
-    if len(date_time.split("-")) < 3:
+    if "-" in date_time and len(date_time.split("-")) < 3:
         return datetime.datetime.strptime(date_time, "%Y-%m")
     
     if len(date_time) == 4:
-        return datetime.datetime.strptime(datetime, "%Y")
+        return datetime.datetime.strptime(date_time, "%Y")
 
     return datetime.datetime.strptime(date_time, "%Y-%m-%d")
 
@@ -51,7 +51,6 @@ def sort_tracks(track_list:list[str]) -> None:
             for j in range(0, n - i - 1):
                 curr = 0
                 nxt = 0
-
                 if "-" in track_list[j]:
                     curr = int(track_list[j].split("-")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
                     nxt = int(track_list[j + 1].split("-")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
@@ -59,7 +58,15 @@ def sort_tracks(track_list:list[str]) -> None:
                 elif "_" in track_list[j]:
                     curr = int(track_list[j].split("_")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
                     nxt = int(track_list[j + 1].split("_")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
-                
+                else:
+                    if track_list[j].split(".")[0][-1].isnumeric() and track_list[j].split(".")[0][-1].isnumeric():
+                        curr = int(track_list[j].split(".")[0][-1])
+                        nxt = int(track_list[j + 1].split(".")[0][-1])
+                    else:
+                        curr = int(track_list[j].split(".")[0].replace("track",""))
+                        nxt = int(track_list[j + 1].split(".")[0].replace("track", ""))
+
+
                 if curr > nxt:
                     track_list[j], track_list[j + 1] = track_list[j + 1].strip() , track_list[j].strip()
                     swapped = True
