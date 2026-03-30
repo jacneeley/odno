@@ -47,8 +47,8 @@ def test_sort_tracks(track_list, expected):
 
 def test_sort_tracks_cannot_sort(mocker):
     track_list = ["tracka.wav", "cover.jpg", "trackb.wav", "trackc.wav"]
-    mock_get = mocker.patch("src.utility.sys.exit")
+    mock_exit = mocker.patch("src.utility.sys.exit")
 
     util.sort_tracks(track_list)
 
-    mock_get.assert_called_once()
+    mock_exit.assert_called_once()
