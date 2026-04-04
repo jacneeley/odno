@@ -46,6 +46,8 @@ def sort_tracks(track_list:list[str]) -> None:
         It is better to prioritize memory in this case, especially since python eats memory for breakfast.
     '''
     try:
+        search_for_cover(track_list)
+
         l = len(track_list)
         for i in range(l - 1):
             min_i = i
