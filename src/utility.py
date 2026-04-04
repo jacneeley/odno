@@ -36,7 +36,7 @@ def search_for_cover(track_list:list[str]) -> None:
             del track_list[m]
             break
         
-        hi = m - low
+        hi = m - 1
 
 def sort_tracks(track_list:list[str]) -> None:
     '''
