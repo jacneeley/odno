@@ -36,6 +36,8 @@ def get_bit_rate() -> int:
 def bad_file_names():
     print("\nError: Files in track list need to have a numeric order.\n\nRecommended file name format: <tracknum>_<filename>.<filetype>\nor\n<track><tracknum>.<filetype>\n\nexample:\n6_MyFriendGoo.mp3\nOR\ntrack1.wav")
 
+def unexpected():
+    print("An expected error has occurred...")
 
 #####################
 ### unix commands ###
