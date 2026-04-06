@@ -46,6 +46,12 @@ def test_sort_tracks(track_list, expected):
     assert expected == track_list
 
 def test_sort_tracks_cannot_sort(mocker):
+    '''
+        If audio files are ripped from disc, meta data will be lost.
+        If metadata is lost (this app assumes it is) then the only reliable way to get accurate metadata is if the files are name numerically.
+        While this test case could be sorted in the theory, the application will treat this as a scenario that is not sortable.
+        "a", "b", "c" is not a useful sort criteria.
+    '''
     track_list = ["tracka.wav", "cover.jpg", "trackb.wav", "trackc.wav"]
     mock_exit = mocker.patch("src.utility.sys.exit")
 
