@@ -25,6 +25,7 @@ def search_for_cover(track_list:list[str]) -> None:
         BS search for cover.*.
         This is just to clean up the track_list if the selected album has been used before so that it ignores the cover img file.
     '''
+    track_list.sort()
     target = "cover"
     low = 0
     hi = len(track_list) - 1
@@ -32,50 +33,94 @@ def search_for_cover(track_list:list[str]) -> None:
     while low <= hi:
         m = low + (hi - low) // 2
 
-        if target in track_list[m].lower():
+        file = track_list[m].lower().split(".")[0]
+
+        if target == file:
             del track_list[m]
             break
         
-        hi = m - 1
+        if file < target:
+            low = m + 1
+
+        else:
+            hi = m - 1
+
+def get_track_file_value(track:str) -> int:
+        if "-" in track:
+            return int(track.split("-")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
+
+        if "_" in track:
+            return int(track.split("_")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
+        
+        if "track" in track:
+            return int(track.split(".")[0].replace("track",""))
+        
+        return int(track.split(".")[0])
+
+def merge(track_list, l, m, r):
+    n1 = m - l + 1
+    n2 = r - m
+
+    left = [0] * n1
+    right = [0] * n2
+
+    for i in range(n1):
+        left[i] = track_list[l + i]
+    
+    for j in range(n2):
+        right[j] = track_list[m + 1 + j]
+
+    i = j = 0
+    k = l
+
+    while i < n1 and j < n2:
+        if get_track_file_value(left[i]) <= get_track_file_value(right[j]):
+            track_list[k] = left[i]
+            i += 1
+        
+        else:
+            track_list[k] = right[j]
+            j += 1
+        
+        k += 1
+    
+    while i < n1:
+        track_list[k] = left[i]
+        i += 1
+        k += 1
+    
+    while j < n2:
+        track_list[k] = right[j]
+        j += 1
+        k += 1
+
+def merge_sort(arr, l, r):
+    '''
+    classic merge sort algorithm for sorting file names in temp arr.
+    This is done b/c listdr in os library randomly retrieves file names.
+    time: O(n log n) ; space: O(n).
+    ''' 
+    if l < r:
+        m = l + (r - l) // 2
+        merge_sort(arr, l, m)
+        merge_sort(arr, m + 1, r)
+        merge(arr, l, m, r)
 
 def sort_tracks(track_list:list[str]) -> None:
     '''
         Sort tracks from track_list arr using selection sort.
-        time: O(n^2) ; space: O(1).
-        Not the fastest, but track_lists represent total tracks in an album. It should never be greater than 100.
-        It is better to prioritize memory in this case, especially since python eats memory for breakfast.
+        time: O(n log n) ; space: O(n).
     '''
     try:
+        #TODO: test merge sort
+        start = datetime.datetime.second
+        
         search_for_cover(track_list)
+        merge_sort(track_list, 0, len(track_list) - 1 )
+        
+        end = datetime.datetime.second
+        # print("time to sort in seconds:",end - start)
 
-        l = len(track_list)
-        for i in range(l - 1):
-            min_i = i
-
-            for j in range(i + 1, l):
-                start = 0
-                curr = start + 1
-
-                if "-" in track_list[j]:
-                    start = int(track_list[min_i].split("-")[0]) if track_list[min_i][0].isnumeric() else int(track_list[min_i].split(".")[0].replace("track",""))
-                    curr = int(track_list[j].split("-")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
-
-                elif "_" in track_list[j]:
-                    start = int(track_list[min_i].split("_")[0]) if track_list[min_i][0].isnumeric() else int(track_list[min_i].split(".")[0].replace("track",""))
-                    curr = int(track_list[j].split("_")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
-                else:
-                    if "track" in track_list[j]:
-                        start = int(track_list[min_i].split(".")[0].replace("track",""))
-                        curr = int(track_list[j].split(".")[0].replace("track", ""))
-                    else:
-                        start = int(track_list[min_i].split(".")[0])
-                        curr = int(track_list[j].split(".")[0])
-
-                if curr < start:
-                    min_i = j
-
-            track_list[i], track_list[min_i] = track_list[min_i], track_list[i]
-    
     except ValueError:
         prompts.bad_file_names()
         sys.exit()
