@@ -29,7 +29,7 @@ def check_album(album:dict, platform:str) -> dict:
         mbid = album['album']['mbid']
         tmp["album"] = album['album']['name']
         tmp['artist'] = album['album']['artist']
-        tmp["release_date"] =  fetcher.fetch_date_from_music_brainz(mbid,False)
+        tmp["release_date"] =  fetcher.fetch_date_from_music_brainz(mbid, False)
     
     elif platform == "DISCOGS":
         tmp["album"] = album['title']
