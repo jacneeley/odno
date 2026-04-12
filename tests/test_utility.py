@@ -20,6 +20,9 @@ import src.utility as util
     )
 ])
 def test_convert_date_str(date_time: str, expected: datetime):
+    '''
+        Test convert_date_str functionality. 
+    '''
     date_str = util.convert_date_str(date_time)
     assert date_str == expected
 
@@ -42,6 +45,9 @@ def test_convert_date_str(date_time: str, expected: datetime):
     )
 ])
 def test_sort_tracks(track_list, expected):
+    '''
+        Test util.sort_tracks behavior.
+    '''
     util.sort_tracks(track_list)
     assert expected == track_list
 
