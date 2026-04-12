@@ -20,44 +20,68 @@ def convert_date_str(date_time:str):
 
     return datetime.datetime.strptime(date_time, "%Y-%m-%d")
 
-def search_for_cover(track_list:list[str]) -> None:
+def bs_for_string(arr:list[str], target:str, ftype:bool, remove:bool) -> bool:
     '''
-        BS search for cover.*.
-        This is just to clean up the track_list if the selected album has been used before so that it ignores the cover img file.
+        BS search for target string.
+        This search util can be used to quickly find if a string is present in a collection and/or remove that string when found.
+
+        parameters:
+            * arr -> list collection to search.
+            * target -> str target string.
+            * ftype -> bool is the target a name or a string representation of a file type.
+            * remove -> bool remove the target once found.
+
+        returns:
+            * bool True if target is found else False.
+
     '''
-    track_list.sort()
-    target = "cover"
-    low = 0
-    hi = len(track_list) - 1
+    arr.sort()
+    l, r = 0, len(arr) - 1
 
-    while low <= hi:
-        m = low + (hi - low) // 2
+    while l <= r:
+        m = l + (r - l) // 2
 
-        file = track_list[m].lower().split(".")[0]
+        curr = arr[m].lower().split(".")[-1] if ftype else arr[m].lower().split(".")[0]
 
-        if target == file:
-            del track_list[m]
-            break
-        
-        if file < target:
-            low = m + 1
+        if target == curr:
+            if remove:
+                del arr[m]
+      
+            return True
+
+        if curr < target:
+            l = m + 1
 
         else:
-            hi = m - 1
+            r = m - 1
+
+    return False
 
 def get_track_file_value(track:str) -> int:
-        if "-" in track:
-            return int(track.split("-")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
+    '''
+        Helper function to return the numeric value in the file name.
 
-        if "_" in track:
-            return int(track.split("_")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
-        
-        if "track" in track:
-            return int(track.split(".")[0].replace("track",""))
-        
-        return int(track.split(".")[0])
+        parameters:
+            * track -> str file name
+
+        returns:
+            * int value extracted from file name. 
+    '''
+    if "-" in track:
+        return int(track.split("-")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
+
+    if "_" in track:
+        return int(track.split("_")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
+
+    if "track" in track:
+        return int(track.split(".")[0].replace("track",""))
+
+    return int(track.split(".")[0])
 
 def merge(track_list, l, m, r):
+    '''
+    Sort and merge after recursive merge_sort call.
+    '''
     n1 = m - l + 1
     n2 = r - m
 
@@ -109,17 +133,12 @@ def merge_sort(arr, l, r):
 def sort_tracks(track_list:list[str]) -> None:
     '''
         Sort tracks from track_list arr using selection sort.
-        time: O(n log n) ; space: O(n).
+        search_for_cover => time: O(n log n) ; space: O(n).
+        merge_sort => time: O(n log n) ; space: O(n).
     '''
     try:
-        #TODO: test merge sort
-        start = datetime.datetime.second
-        
-        search_for_cover(track_list)
+        bs_for_string(track_list, "cover", False, True)
         merge_sort(track_list, 0, len(track_list) - 1 )
-        
-        end = datetime.datetime.second
-        # print("time to sort in seconds:",end - start)
 
     except ValueError:
         prompts.bad_file_names()
@@ -128,60 +147,6 @@ def sort_tracks(track_list:list[str]) -> None:
     except IndexError:
         prompts.unexpected()
         sys.exit()
-
-
-# def sort_tracks(track_list:list[str]) -> None:
-#     '''
-#         Sort tracks from track_list using bubble sort.
-
-#         parameters:
-#             * track_list -> list of tracks in album directory.
-#     '''
-#     l = len(track_list)
-#     for i in range(l):
-#         if "cover" in track_list[i]:
-#             del track_list[i]
-#             break
-
-#     counter = 0
-#     for i in track_list:
-#         if i.split(".")[0].isalpha():
-#             counter += 1
-    
-#     is_all_alpha = counter == len(track_list)
-    
-#     if is_all_alpha:
-#         prompts.bad_file_names()
-#         sys.exit()
-
-#     else:
-#         n = len(track_list)
-#         for i in range(n):
-#             swapped = False
-#             for j in range(0, n - i - 1):
-#                 curr = 0
-#                 nxt = 0
-#                 if "-" in track_list[j]:
-#                     curr = int(track_list[j].split("-")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
-#                     nxt = int(track_list[j + 1].split("-")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
-
-#                 elif "_" in track_list[j]:
-#                     curr = int(track_list[j].split("_")[0]) if track_list[j][0].isnumeric() else int(track_list[j].split(".")[0].replace("track",""))
-#                     nxt = int(track_list[j + 1].split("_")[0]) if track_list[j + 1][0].isnumeric() else int(track_list[j + 1].split(".")[0].replace("track",""))
-#                 else:
-#                     if track_list[j].split(".")[0][-1].isnumeric() and track_list[j].split(".")[0][-1].isnumeric():
-#                         curr = int(track_list[j].split(".")[0][-1])
-#                         nxt = int(track_list[j + 1].split(".")[0][-1])
-#                     else:
-#                         curr = int(track_list[j].split(".")[0].replace("track",""))
-#                         nxt = int(track_list[j + 1].split(".")[0].replace("track", ""))
-
-
-#                 if curr > nxt:
-#                     track_list[j], track_list[j + 1] = track_list[j + 1].strip() , track_list[j].strip()
-#                     swapped = True
-#             if not swapped:
-#                 break
     
 def remove_wavs(path:str) -> None:
     '''
@@ -192,8 +157,10 @@ def remove_wavs(path:str) -> None:
     '''
 
     items = os.listdir(path)
-    if ".wav" in items:
+
+    wav_found = bs_for_string(items, "wav", True, False)
+
+    if wav_found:
         rm_wav = prompts.rm_wav_prompt()
         if rm_wav == "y":
             subprocess.call(f"rm {path}/*.wav" , shell=True)
-            # subprocess.call("rm *.mp3", shell=debug)
