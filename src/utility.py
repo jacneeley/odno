@@ -1,3 +1,4 @@
+'''Module for utility functions.'''
 import os
 import sys
 import datetime
@@ -12,9 +13,12 @@ def convert_date_str(date_time:str):
         parameters:
             * date_time -> str date to convert to datetime.
     '''
+    if isinstance(date_time,int) and date_time < 10000:
+        return datetime.datetime.strptime(str(date_time), "%Y")
+
     if "-" in date_time and len(date_time.split("-")) < 3:
         return datetime.datetime.strptime(date_time, "%Y-%m")
-    
+
     if len(date_time) == 4:
         return datetime.datetime.strptime(date_time, "%Y")
 
@@ -40,13 +44,11 @@ def bs_for_string(arr:list[str], target:str, ftype:bool, remove:bool) -> bool:
 
     while l <= r:
         m = l + (r - l) // 2
-
         curr = arr[m].lower().split(".")[-1] if ftype else arr[m].lower().split(".")[0]
-
         if target == curr:
             if remove:
                 del arr[m]
-      
+
             return True
 
         if curr < target:
@@ -90,7 +92,7 @@ def merge(track_list, l, m, r):
 
     for i in range(n1):
         left[i] = track_list[l + i]
-    
+
     for j in range(n2):
         right[j] = track_list[m + 1 + j]
 
@@ -101,18 +103,18 @@ def merge(track_list, l, m, r):
         if get_track_file_value(left[i]) <= get_track_file_value(right[j]):
             track_list[k] = left[i]
             i += 1
-        
+
         else:
             track_list[k] = right[j]
             j += 1
-        
+
         k += 1
-    
+
     while i < n1:
         track_list[k] = left[i]
         i += 1
         k += 1
-    
+
     while j < n2:
         track_list[k] = right[j]
         j += 1

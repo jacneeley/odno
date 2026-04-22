@@ -1,10 +1,11 @@
+'''Main'''
 from src.handle_metadata import save_album_metadata
 
 def app() -> None:
     '''
         driver code for the application.
     '''
-    saved = save_album_metadata(False)
+    saved = save_album_metadata()
     if not saved:
         print("Exiting.")
     else:

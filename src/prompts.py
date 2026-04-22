@@ -39,6 +39,13 @@ def bad_file_names():
 def unexpected():
     print("An expected error has occurred...")
 
+def retry_choice_prompt(failed:bool) -> None:
+    if failed:
+        print("Try the following:\n1.) Manual Search - Enter Album name and Artist Name and search\n2.)Manual Entry - Enter album metadata yourself; works offline.")
+    else:
+        print("Try the following:\n1.)Retry - Search again.\n2.) Manual Search - Enter Album name and Artist Name and search\n3.)Manual Entry - Enter album metadata yourself; works offline.")
+
+
 #####################
 ### unix commands ###
 #####################
