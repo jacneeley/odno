@@ -33,13 +33,13 @@ def check_album(album:dict, platform:str) -> dict:
         tmp['artist'] = album['album']['artist']
         tmp['release_date'] =  fetcher.fetch_date_from_music_brainz(mbid)
         tmp['source'] = globalconstants.__lastfm__()
-    
+
     elif platform == globalconstants.__discogs__():
         tmp['album'] = album['title']
         tmp['artist'] = album['artists'][0]['name']
         tmp['release_date'] = util.convert_date_str(album['year'])
         tmp['source'] = globalconstants.__discogs__()
-    
+
     print("album:",    tmp['album'])
     print("artist:",   tmp['artist'])
     print("release:",  str(tmp['release_date']))
@@ -52,7 +52,7 @@ def get_album_data_from_source(album:dict, resp:dict) -> list[Song]:
     '''
 
     tracks = []
- 
+
     try:
         if globalconstants.__debugflg__():
             logger.info(resp)
@@ -225,7 +225,7 @@ def get_response_from_repo(album_query:str) -> ResponseBody:
             elif globalconstants.__debugflg__():
                 logger.error("album data could not be retrieved from source...")
 
-        if q.lower() == globalconstants.__no__() and input("try again (y/n)? ").lower() == globalconstants.__yes__():
+        elif q.lower() == globalconstants.__no__() and input("try again (y/n)? ").lower() == globalconstants.__yes__():
             result_list = valid_discogs_flow(album_query)
             if result_list:
                 resp.result_list = result_list
@@ -300,26 +300,26 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
 
         cp_cmd = prompts.copy_to_temp(source_file, dest_file)
         if globalconstants.__debugflg__():
-            logger.info(cp_cmd, "\n")
+            logger.info("%s\n", cp_cmd)
         
         subprocess.run([cp_cmd], shell=True, check=False)
 
         if not is_mp3:
             convert = prompts.convert_to_mp3_with_selected_bitrate(source_file, bit_rate, og)
             if globalconstants.__debugflg__():
-                logger.info(convert, "\n")
+                logger.info("%s\n", convert)
             
             subprocess.run([convert], shell=True, check = False)
 
         ffmpeg_meta_cmd = prompts.save_metadata_ffmpeg(is_saved, og, parent_dir, song, final_mp3_file)
         if globalconstants.__debugflg__():
-            logger.info(ffmpeg_meta_cmd, "\n")
+                logger.info("%s\n", ffmpeg_meta_cmd)
         
         subprocess.run([ffmpeg_meta_cmd], shell=True, check = False)
 
         rm_cmd = prompts.clean_up(og)
         if globalconstants.__debugflg__():
-            logger.info(rm_cmd,"\n")
+            logger.info("%s\n", rm_cmd)
         
         subprocess.run([f'rm {og}'], shell=True, check=False)
 
