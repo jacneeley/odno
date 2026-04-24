@@ -15,12 +15,12 @@ discogs_test = {'id': 9768, 'main_release': 1352572, 'most_recent_release': 3019
         (
             "LASTFM",
             last_fm_test,
-            {"album": "Goo", "artist": "Sonic Youth", "release_date" : datetime.datetime(1990, 6, 26, 0, 0)}
+            {"album": "Goo", "artist": "Sonic Youth", "release_date" : datetime.datetime(1990, 6, 26, 0, 0), "source": "LASTFM"}
         ),
         (
             "DISCOGS",
             discogs_test,
-            {"album": "Daydream Nation", "artist": "Sonic Youth", "release_date" : 1988}
+            {"album": "Daydream Nation", "artist": "Sonic Youth", "release_date" : datetime.datetime(1988, 1, 1, 0, 0), "source": "DISCOGS"}
         )
     ])
 def test_check_album(platform, test_album, expected):
@@ -29,12 +29,12 @@ def test_check_album(platform, test_album, expected):
     '''
     assert expected == handle_metadata.check_album(test_album, platform)
 
-@pytest.mark.parametrize("album, resp, expected_count, expected_song_attr",[
+@pytest.mark.parametrize("album, resp, expected_count, expected_attrs",[
     (
-        #album
-        {"album": "Daydream Nation", "artist": "Sonic Youth", "release_date" : 1988},
+        # album
+        {'album': "Daydream Nation", 'artist': "Sonic Youth", 'release_date': datetime.datetime(1988, 1, 1, 0, 0), 'source': "DISCOGS"},
         
-        #resp
+        # resp
         {
             'images': [{'uri': 'https://example.com/cover.jpg'}],
             'styles': ['Alternative Rock', 'Indie Rock'],
@@ -49,8 +49,8 @@ def test_check_album(platform, test_album, expected):
         
         # number of tracks
         3,
-
-        #expected attributes for track 1
+        
+        # expected method calls for each track (as a list of expected call sequences)
         {
             'title': 'Teen Age Riot',
             'artist': 'Sonic Youth',
@@ -64,10 +64,13 @@ def test_check_album(platform, test_album, expected):
         }
     ),
     (
-        {"album": "Goo", "artist": "Sonic Youth", "release_date": 1990},
+        # album
+        {"album": "Goo", "artist": "Sonic Youth", "release_date": datetime.datetime(1990, 1, 1, 0, 0), 'source': "DISCOGS"},
+        
+        # resp
         {
             'images': [{'uri': 'https://example.com/goo_cover.jpg'}],
-            'styles': [],  # empty styles
+            'styles': [],
             'genres': ['Alternative Rock'],
             'tracklist': [
                 {'title': 'Dirty Boots'},
@@ -75,7 +78,11 @@ def test_check_album(platform, test_album, expected):
             ],
             'year': 1990
         },
+        
+        # number of tracks
         2,
+        
+        # expected method calls for each track
         {
             'title': 'Dirty Boots',
             'artist': 'Sonic Youth',
@@ -90,7 +97,7 @@ def test_check_album(platform, test_album, expected):
     ),
     (
         #dummy album
-        {"album": "Daydream Nation", "artist": "Sonic Youth", "release_date" : 1988},
+        {"album": "Daydream Nation", "artist": "Sonic Youth", "release_date" : datetime.datetime(1988, 1, 1, 0, 0), 'source': "DISCOGS"},
 
         #dummy response
         discogs_test,
@@ -100,47 +107,20 @@ def test_check_album(platform, test_album, expected):
         
         # dummy object
         {
-            'title': 'Teen Age Riot',
             'artist': 'Sonic Youth',
             'album_artist': 'Sonic Youth',
             'album': 'Daydream Nation',
             'cd': 1,
             'genre': 'Alternative Rock',
             'year': 1988,
-            'track_num': 1,
             'cover': 'https://i.discogs.com/WFA7Kod1I11LlmFF9Y8pU-uwf1yS58cutjotHKDdAKs/rs:fit/g:sm/q:90/h:600/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTEzNTI1/NzItMTU0MTk3NzU1/Mi00OTYyLmpwZWc.jpeg'
         }
-    )
-])
-@patch('src.handle_metadata.Song')
-def test_get_album_data_from_discogs(mock_song_class, album, resp, expected_count, expected_song_attr):
-    '''
-        Test get_album_data_from_discogs with mocked Song class.
-    '''
-
-    mock_song = Mock()
-    mock_song_class.return_value = mock_song
-
-    result = handle_metadata.get_album_data_from_discogs(album, resp, debug=False)
-
-    assert mock_song_class.call_count == expected_count
-
-    expected_calls = []
-    for i , track in enumerate(resp['tracklist']):
-        expected_attrs = expected_song_attr.copy()
-        expected_attrs['title'] = track['title']
-        expected_attrs['track_num'] = i + 1
-        expected_calls.append(call(**expected_attrs))
-
-    mock_song_class.assert_has_calls(expected_calls)
+    ),
     
-    assert len(result) == expected_count
-    assert all(song == mock_song for song in result)
-
-@pytest.mark.parametrize("album, resp, expected_count, expected_song_attr",[
+    #lastfm test cases
     (
         #album
-        {"album": "Goo", "artist": "Sonic Youth", "release_date" : "1990-06-26 00:00:00"},
+        {"album": "Goo", "artist": "Sonic Youth", "release_date" : datetime.datetime(1990, 6, 26, 0, 0), "source": "LASTFM"},
         
         #dummy response from lastfm api
         {
@@ -180,7 +160,7 @@ def test_get_album_data_from_discogs(mock_song_class, album, resp, expected_coun
     (
 
         #dummy album
-        {"album": "Daydream Nation", "artist": "Sonic Youth", "release_date" : "1988-01-01 00:00:00"},
+        {"album": "Daydream Nation", "artist": "Sonic Youth", "release_date" : datetime.datetime(1988, 1, 1, 0, 0), "source": "LASTFM"},
         
         # dummy response
         {
@@ -218,7 +198,7 @@ def test_get_album_data_from_discogs(mock_song_class, album, resp, expected_coun
     ),
     (
         #dummy album
-        {"album": "Goo", "artist": "Sonic Youth", "release_date" : "1992-06-26 00:00:00"},
+        {"album": "Goo", "artist": "Sonic Youth", "release_date" : datetime.datetime(1992, 6, 26, 0, 0), "source": "LASTFM"},
 
         #dummy response
         last_fm_test,
@@ -240,29 +220,52 @@ def test_get_album_data_from_discogs(mock_song_class, album, resp, expected_coun
         }
     )
 ])
-@patch('src.handle_metadata.Song')
-def test_get_album_data_from_lastfm(mock_song_class, album, resp, expected_count, expected_song_attr):
+@patch('src.handle_metadata.SongBuilder')
+def test_get_album_data_from_source(mock_songbuilder_class, album, resp, expected_count, expected_attrs):
     '''
-    Test get_album_data_from_lastfm.
+        Test get_album_data_from_discogs with mocked Song class.
     '''
-    mock_song = Mock()
-    mock_song_class.return_value = mock_song
+    mock_instance = [Mock() for _ in range(expected_count)]
+    mock_songbuilder_class.side_effect = mock_instance
 
-    result = handle_metadata.get_album_data_from_lastfm(album, resp, debug=False)
+    for i in mock_instance:
+        i.title.return_value = i
+        i.artist.return_value = i
+        i.album.return_value = i
+        i.album_artist.return_value = i
+        i.genre.return_value = i
+        i.year.return_value = i
+        i.track_num.return_value = i
+        i.cover.return_value = i
 
-    assert mock_song_class.call_count == expected_count
+    mock_songs = [Mock() for _ in range(expected_count)]
+    for i, j in zip(mock_instance, mock_songs):
+        i.build.return_value = j
+
+    result = handle_metadata.get_album_data_from_source(album, resp)
+
+    assert mock_songbuilder_class.call_count == expected_count
+    mock_songbuilder_class.assert_has_calls([call()] * expected_count)
+
+    if album["source"] == "DISCOGS":
+        tracks = resp['tracklist']
+        track_str = 'title'
+       
+    else:
+        tracks = resp['album']['tracks']['track']
+        track_str = 'name'
 
     expected_calls = []
-    for i , track in enumerate(resp['album']['tracks']['track']):
-        expected_attrs = expected_song_attr.copy()
-        expected_attrs['title'] = track['name']
+    for i , (m, track) in enumerate(zip(mock_instance, tracks)):
+        expected_attrs = expected_attrs.copy()
+        expected_attrs[track_str] = track[track_str]
         expected_attrs['track_num'] = i + 1
         expected_calls.append(call(**expected_attrs))
 
-    mock_song_class.assert_has_calls(expected_calls)
-    
+        m.build.asset_called_once()
+
+    assert result == mock_songs
     assert len(result) == expected_count
-    assert all(song == mock_song for song in result)
 
 @pytest.mark.parametrize("inputs, expected_result, mock_resp, mock_album, mock_songs", [
     (
@@ -299,7 +302,7 @@ def test_get_album_data_from_lastfm(mock_song_class, album, resp, expected_count
     )
 ])
 @patch('src.handle_metadata.prompts.wow_niche')
-@patch('src.handle_metadata.get_album_data_from_lastfm')
+@patch('src.handle_metadata.get_album_data_from_source')
 @patch('src.handle_metadata.check_album')
 @patch('src.handle_metadata.fetcher.get_album_lastfm')
 @patch('builtins.input')
@@ -313,7 +316,9 @@ def test_manual_search_gets_track_list(mock_input, mock_get_album_lastfm, mock_c
     mock_input.side_effect = inputs
 
     #external dependencies
-    mock_get_album_lastfm.return_value = mock_resp
+    mock_response_body = Mock()
+    mock_response_body.json_response = mock_resp
+    mock_get_album_lastfm.return_value = mock_response_body
     mock_check_album.return_value = mock_album
     mock_get_album_data.return_value = mock_songs
 
@@ -324,12 +329,12 @@ def test_manual_search_gets_track_list(mock_input, mock_get_album_lastfm, mock_c
 
     # verify calls
     if inputs[0].lower() == "y":
-        mock_get_album_lastfm.assert_called_once_with(inputs[1], inputs[2], True)
+        mock_get_album_lastfm.assert_called_once_with(inputs[1], inputs[2])
 
-        mock_check_album.assert_called_once_with(mock_resp, "LASTFM")
+        mock_check_album.assert_called_once_with(mock_response_body.response_json, "LASTFM")
 
         if inputs[3].lower() == "y":
-            mock_get_album_data.assert_called_once_with(mock_album, mock_resp, True)
+            mock_get_album_data.assert_called_once_with(mock_album, mock_response_body.response_json)
             mock_niche_prompt.assert_not_called()
         else:
             mock_get_album_data.assert_not_called()
@@ -341,115 +346,6 @@ def test_manual_search_gets_track_list(mock_input, mock_get_album_lastfm, mock_c
         mock_check_album.assert_not_called()
         mock_get_album_data.assert_not_called()
         mock_niche_prompt.assert_not_called()
-
-@pytest.mark.parametrize("inputs, expected_result, mock_resp, mock_album, mock_songs"
-, [
-    (
-        ["Four_Calendar_Cafe-Cocteau Twins", "LASFTFM", "n", "y", "n"],
-        [],
-        {"mock":"bad_lasfm_resp"},
-        {"album" : "Four Calendar Cafe", "artist": "Cocteau Twins"}, #correct album would be Four-Calendar Cafe
-        []
-    ),
-    (
-        ["Goo-Sonic_Youth", "LASTFM", "y", "", ""],
-        ["song1", "song2"],
-        {"mock" : "lastfm_resp"},
-        {"album": "Goo", "artist": "Sonic Youth"},
-        ["song1", "song2"]
-    ),
-    (
-        ["Daydream_Nation-Sonic_Youth", "DISCOGS", "n", "y", "y"],
-        ["song1", "song2"],
-        {"mock" : "discogs_resp"},
-        {"album": "Daydream Nation", "artist": "Sonic Youth"},
-        ["song1", "song2"]
-    )
-])
-@patch("src.handle_metadata.get_album_data_from_discogs")
-@patch("src.handle_metadata.fetcher.get_album_discogs")
-@patch("src.handle_metadata.get_album_data_from_lastfm")
-@patch("src.handle_metadata.check_album")
-@patch("src.handle_metadata.fetcher.get_album_lastfm")
-@patch("builtins.input")
-def test_get_album_from_repo(
-    mock_input,
-    mock_get_album_lastfm,
-    mock_check_album,
-    mock_get_album_data_from_lastfm,
-    mock_get_album_discogs,
-    mock_get_album_data_from_discogs,
-    inputs,
-    expected_result,
-    mock_resp,
-    mock_album,
-    mock_songs
-):
-    
-    query = inputs[0].split("-")
-    artist_str = query[-1].replace(" ", "+").replace("_","+")
-    album_str = query[0].replace(" ", "+").replace("_", "+")
-
-    mock_input.side_effect = inputs[2:]
-    
-    mock_check_album.return_value = mock_album
-
-    response_obj = {}
-    if inputs[1] == "LASTFM":
-        mock_lastfm_response = Mock()
-        mock_lastfm_response.json.return_value = mock_resp
-        mock_get_album_lastfm.return_value = mock_lastfm_response
-
-        mock_get_album_data_from_lastfm.return_value = mock_songs
-
-        response_obj = mock_lastfm_response
-
-    else:
-        mock_discogs_response = Mock()
-        mock_discogs_response.json.return_value = mock_resp
-        mock_get_album_discogs.return_value = mock_discogs_response
-        
-        mock_get_album_data_from_discogs.return_value = mock_songs
-
-        response_obj = mock_discogs_response
-
-    result = handle_metadata.get_album_from_repo(inputs[0], False)
-
-    assert result == expected_result
-    
-    if inputs[1] == "LASTFM" and inputs[2] == "y":
-        #auto search lastfm success
-        expected_artist_query = artist_str.replace(" ", "+")
-        expected_album_query = album_str.replace(" ", "+")
-        mock_get_album_lastfm.assert_called_once_with(expected_artist_query, expected_album_query, False)
-            
-        mock_get_album_data_from_lastfm.assert_called_once_with(
-            mock_check_album.return_value, response_obj, False)
-
-        #verify discogs not called
-        mock_get_album_discogs.assert_not_called()
-        mock_get_album_data_from_discogs.assert_not_called()
-
-    elif inputs[1] == "DISCOGS" and inputs[2] == "n" and inputs[3] == "y" and inputs[4] == "y":
-        #last fm failed , discogs success
-        album_query = inputs[0].replace("-", " by ").replace("_", " ")
-        mock_get_album_discogs.assert_called_once_with(album_query)
-
-        mock_check_album.assert_called_with(
-            response_obj, inputs[1])
-
-        mock_get_album_data_from_discogs.assert_called_once_with(mock_check_album.return_value, response_obj, False)
-
-        #verify not lastfm
-        mock_get_album_data_from_lastfm.assert_not_called()
-
-    elif inputs[1] == "LASTFM" and inputs[2] == "n" and inputs[3] == "y" and inputs[4] == "n":
-        #rejected by user
-        mock_get_album_lastfm.assert_called_once()
-        mock_check_album.assert_called_once()
-        mock_get_album_data_from_lastfm.assert_not_called()
-        mock_get_album_discogs.assert_not_called()
-        mock_get_album_data_from_discogs.assert_not_called()
 
 @pytest.mark.parametrize("expected, path, file, bit_rate, is_saved",[
     (
@@ -485,7 +381,7 @@ def test_modify_metadata_ffmpeg(
     file,
     bit_rate,
     is_saved):
-    
+ 
     mock_song = Mock()
     mock_song.title = "song_title"
     mock_song.track_num = 1
@@ -499,7 +395,7 @@ def test_modify_metadata_ffmpeg(
     #determine file type
     is_mp3 = file.endswith(".mp3")
 
-    result = handle_metadata.modify_metadata_ffmpeg(path, file, mock_song, bit_rate, is_saved, False)
+    result = handle_metadata.modify_metadata_ffmpeg(path, file, mock_song, bit_rate, is_saved)
     assert result == expected
 
     assert mock_copy.call_count == 1
@@ -537,10 +433,62 @@ def test_modify_metadata_ffmpeg(
 
 @pytest.mark.parametrize("scenario", [
     {
+        "inputs": ["y", ""], #correct and try again inputs
+        "album_query": "album_name-artist_name",
+        "get_album_from_lastfm": Mock(json_response={"mock": "response"}, is_success=True, result_list = []),
+        "check_album" : {"mock": "album"},
+        "valid_discogs_flow": [], # doesn't occurr
+        "get_album_data_from_source": [Mock(title="song1", album="album1", artist="artist1"), Mock(title="song2", album="album2", artist="artist2")]
+    },
+    {
+        "inputs": ["n", "y"], #user rejects lastfm response and tries again
+        "album_query": "album_name-artist_name",
+        "get_album_from_lastfm" : Mock(json_response={"mock": "response"}, is_success=True, result_list = []),
+        "check_album": {"mock" : "album"},
+        "valid_discogs_flow" : [Mock(title="song1", album="album1", artist="artist1"), Mock(title="song2", album="album2", artist="artist2")],
+        "gel_album_data_from_source" : [] # not needed
+    },
+
+])
+@patch('src.handle_metadata.valid_discogs_flow')
+@patch('src.handle_metadata.get_album_data_from_source')
+@patch('src.handle_metadata.check_album')
+@patch('src.fetcher.get_album_lastfm')
+@patch("builtins.input")
+def test_get_response_from_repo(
+    mock_inputs,
+    mock_get_album_lastfm,
+    mock_check_album,
+    mock_get_from_source,
+    mock_valid_discogs_flow,
+    scenario):
+    '''Test for src.get_response_from_repo()'''
+
+    mock_inputs.side_effect = scenario['inputs']
+
+    mock_get_album_lastfm.return_value = scenario['get_album_from_lastfm']
+
+    mock_check_album.return_value = scenario['check_album']
+
+    expected = []
+    if scenario['valid_discogs_flow']:
+        mock_valid_discogs_flow.return_value = scenario['valid_discogs_flow']
+        expected = mock_valid_discogs_flow.return_value
+    
+    else:
+        mock_get_from_source.return_value = scenario['get_album_data_from_source']
+        expected = mock_get_from_source.return_value
+
+    result = handle_metadata.get_response_from_repo(scenario['album_query'])
+
+    assert result.result_list == expected
+
+@pytest.mark.parametrize("scenario", [
+    {
         "path": "some/path/album_name-artist_name",
         "dir_list": ["track1.wav", "track2.wav"],
         "sorted_list": ["track1.wav", "track2.wav"],
-        "songs_from_repo": [],  # Empty, triggers manual search
+        "response_from_repo": Mock(response_body={"mock":"response"}, is_succcess=False, result_list = []),  # Empty, triggers manual search
         "manual_songs": [Mock(title="manual1", track_num=1, cover="cover1.jpg"),
                         Mock(title="manual2", track_num=2, cover="cover2.jpg")],
         "album_name": "album_name-artist_name",
@@ -553,7 +501,7 @@ def test_modify_metadata_ffmpeg(
         "path": "some/path/album_name-artist_name",
         "dir_list": ["track1.wav", "track2.wav"],
         "sorted_list": ["track1.wav", "track2.wav"],
-        "songs_from_repo": [Mock(title="song1", track_num=1, cover="cover1.jpg")],
+        "response_from_repo": Mock(response_body={"mock":"album"}, is_succcess=True, result_list = [Mock(title="song1", album="album1", artist="artist1"), Mock(title="song2", album="album2", artist="artist2")]),
         "manual_songs": [],
         "album_name": "album_name-artist_name",
         "bit_rate": 192,
@@ -567,7 +515,7 @@ def test_modify_metadata_ffmpeg(
 @patch("src.handle_metadata.get_album_image")
 @patch("src.handle_metadata.prompts.get_bit_rate")
 @patch("src.handle_metadata.manual_search")
-@patch("src.handle_metadata.get_album_from_repo")
+@patch("src.handle_metadata.get_response_from_repo")
 @patch("src.handle_metadata.util.sort_tracks")
 @patch("src.handle_metadata.subprocess.call")
 @patch("src.handle_metadata.os")
@@ -592,28 +540,28 @@ def test_save_album_metadata_scenarios(
     mock_os.path.split.return_value = ("some/path", scenario["album_name"])
     mock_os.listdir.return_value = scenario["dir_list"]
     mock_os.mkdir.return_value = None
-    
+
     # Setup input mock
     mock_input.return_value = scenario["path"]
-    
+
     # Setup sort_tracks
     mock_sort.return_value = None
-    
+
     # Setup repo and manual search
-    mock_repo.return_value = scenario["songs_from_repo"]
+    mock_repo.return_value = scenario["response_from_repo"]
     mock_manual.return_value = scenario["manual_songs"]
-    
+
     # Setup bit rate
     mock_bit_rate.return_value = scenario["bit_rate"]
-    
+
     # Setup album image - returns True for first call, False for others
     mock_album_image.side_effect = lambda *args: scenario["successful_save"] if mock_album_image.call_count == 0 else False
-    
+
     # Setup modify_metadata_ffmpeg
     mock_modify.return_value = scenario["success"]
-    
+
     # Call function
-    result = handle_metadata.save_album_metadata(False)
-    
+    result = handle_metadata.save_album_metadata()
+ 
     # Assert result
     assert result == scenario["expected"]
