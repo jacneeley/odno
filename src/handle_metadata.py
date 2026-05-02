@@ -1,15 +1,18 @@
+'''common module for handling application flow.'''
 import os
 import requests
 import subprocess
 
 from collections import deque
 
+import core.utility as util
+import core.prompts as prompts
+import core.cmds as cmds
+import core.globalconstants as globalconstants
+import core.odnologging as odnologging
+
 import src.fetcher as fetcher
-import src.utility as util
-import src.prompts as prompts
 from src.models import SongBuilder, Song, ResponseBody
-import scripts.globalconstants as globalconstants
-import scripts.odnologging as odnologging
 
 logger = odnologging.create_logger("handle_metadata.py")
 
@@ -27,22 +30,29 @@ def check_album(album:dict, platform:str) -> dict:
         "source": ""
     }
 
-    if platform == globalconstants.__lastfm__():
-        mbid = album['album']['mbid']
-        tmp["album"] = album['album']['name']
-        tmp['artist'] = album['album']['artist']
-        tmp['release_date'] =  fetcher.fetch_date_from_music_brainz(mbid)
-        tmp['source'] = globalconstants.__lastfm__()
+    try:
+        if platform == globalconstants.__lastfm__():
+            mbid = album['album']['mbid']
+            tmp["album"] = album['album']['name']
+            tmp['artist'] = album['album']['artist']
+            tmp['release_date'] =  fetcher.fetch_date_from_music_brainz(mbid)
+            tmp['source'] = globalconstants.__lastfm__()
 
-    elif platform == globalconstants.__discogs__():
-        tmp['album'] = album['title']
-        tmp['artist'] = album['artists'][0]['name']
-        tmp['release_date'] = util.convert_date_str(album['year'])
-        tmp['source'] = globalconstants.__discogs__()
+        elif platform == globalconstants.__discogs__():
+            tmp['album'] = album['title']
+            tmp['artist'] = album['artists'][0]['name']
+            tmp['release_date'] = util.convert_date_str(album['year'])
+            tmp['source'] = globalconstants.__discogs__()
 
-    print("album:",    tmp['album'])
-    print("artist:",   tmp['artist'])
-    print("release:",  str(tmp['release_date']))
+        print("album:",    tmp['album'])
+        print("artist:",   tmp['artist'])
+        print("release:",  str(tmp['release_date']))
+
+    except KeyError as ke:
+        print("Album could not be found...")
+        
+        if globalconstants.__debugflg__():
+            logger.exception(ke)
 
     return tmp
 
@@ -121,33 +131,32 @@ def valid_discogs_flow(album_query:str) -> list[Song]:
     resp = fetcher.get_album_discogs(album_query)
 
     if not resp.is_success:
-        logger.error("Album data could not be found...")
-        if resp.exception and resp.debug:
-            for e in resp.exception:
-                logger.exception(e)
+        print("Album data could not be found...")
+        resp.show_exceptions()
         return []
 
     album = check_album(resp.response_json, globalconstants.__discogs__())
 
-    if input("is the above correct (y/n)?").lower() == globalconstants.__yes__():
-        return get_album_data_from_source(album, resp.response_json)
+    if album['album'] and album['artist']:
+        if input("\nis the above correct (y/n)? ").lower() == globalconstants.__yes__():
+            return get_album_data_from_source(album, resp.response_json)
 
     return []
 
-def retry_switch(choice, album_query) -> list[Song]:
+def retry_switch(choice, album_query="") -> list[Song]:
     '''Switch statement for retries. Refer to retry().'''
-    if choice == globalconstants.__retry__():
+    if choice == globalconstants.__retry__() and album_query not in "":
         return valid_discogs_flow(album_query)
 
     if choice == globalconstants.__manualsearch__():
         return manual_search()
 
     if choice == globalconstants.__manualentry__():
-        return [] ##TODO: create manual entry
+        return manual_entry()
 
     return []
 
-def retry(album_query:str, discogs_failed:bool) -> list[Song]:
+def retry(album_query:str = "", discogs_failed:bool = False) -> list[Song]:
     '''Fallback if a search fails.'''
     try:
         choices = deque([globalconstants.__retry__(), globalconstants.__manualsearch__(), globalconstants.__manualentry__()])
@@ -157,35 +166,93 @@ def retry(album_query:str, discogs_failed:bool) -> list[Song]:
 
         prompts.retry_choice_prompt(discogs_failed)
 
-        sel = int("selection: ")
-        return retry_switch(choices[sel], album_query)
+        sel = int(input("selection: "))
+        if sel < 1 or sel > len(choices):
+            raise ValueError("menu option does not exist...")
 
-    except IndexError:
-        logger.error("Invalid selection was made...Try again.")
+        if len(choices) == 2 and album_query in "":
+            return retry_switch(choices[sel - 1])
+        
+        return retry_switch(choices[sel - 1], album_query)
+
+    except (IndexError, ValueError) as e:
+        print("Invalid selection was made...Try again.")
+
+        if globalconstants.__debugflg__():
+            logger.exception(e)
+
         retry(album_query, discogs_failed)
 
-def manual_search() -> list[Song]:
+def manual_search(is_retry:bool = False) -> list[Song]:
     '''
         Prompt user to perform a manual search if an automated one can't be done or returns undesirable results.
     '''
-    q = input("Would you like to do a manual search (y/n)? ")
+    q = input("\nWould you like to do a manual search (y/n)? ") if not is_retry else globalconstants.__yes__() 
     if q.lower() == globalconstants.__yes__():
-        artist_name = input("enter artist name: ")
+        artist_name = input("\nenter artist name: ")
         album_name = input("enter album name: ")
 
-        print(f"\n searching for {album_name} by {artist_name}")
+        print(f"\nsearching for {album_name} by {artist_name}")
         resp = fetcher.get_album_lastfm(artist_name, album_name)
+
+        if not resp.is_success:
+            print("Album data could not be found...")
+            resp.show_exceptions()
+            prompts.wow_niche()
+            return []
 
         album = check_album(resp.response_json, globalconstants.__lastfm__())
 
-        q = input("is the above correct (y/n)? ")
-        if q.lower() == globalconstants.__yes__():
+        if (album["album"] not in "" and album["artist"] not in "") and input("\nis the above correct (y/n)? ").lower() == globalconstants.__yes__():
             return get_album_data_from_source(album, resp.response_json)
 
-        prompts.wow_niche()
-        return []
-
+    prompts.wow_niche()
     return []
+
+
+def manual_entry(dir_list:list=None, is_retry:bool = False) -> list[Song]:
+    '''Allow user to enter track metadata via inputs as a fallback if fetchers return no result.'''
+    try:
+        if is_retry and input("\nEnter metadata manually (y/n)? ").lower() == globalconstants.__no__():
+            return []
+
+        if dir_list is None:
+            dir_list = []
+
+        tracks = []
+        album_len = int(input("\nNumber of tracks: ")) if not dir_list else len(dir_list)
+
+        album = input("album name: ")
+        artist = input("artist name: ")
+        genre = input("genre: ")
+        year = util.convert_date_str(input("year (mm/dd/yyyy): "))
+        cover = input("Provide album image url (optional | most image url links from search engine are supported): ")
+
+        track_num = 1
+        while track_num <= album_len:
+            name = input(f'track {track_num} name: ')
+
+            song = (SongBuilder()
+                    .title(name)
+                    .album(album)
+                    .artist(artist)
+                    .album_artist(artist)
+                    .genre(genre)
+                    .track_num(track_num)
+                    .year(year)
+                    .cover(cover)
+                    .build())
+
+            tracks.append(song)
+            track_num += 1
+
+    except (ValueError, TypeError) as e:
+        print("ERROR: invalid input...")
+
+        if globalconstants.__debugflg__():
+            logger.exception(e)
+
+    return tracks
 
 def get_response_from_repo(album_query:str) -> ResponseBody:
     '''
@@ -213,24 +280,29 @@ def get_response_from_repo(album_query:str) -> ResponseBody:
             logger.error("Retry failed...")
 
     else:
-        print("searching for %s", album_query)
+        print(f'\nsearching for {query[0]} by {query[1]}')
         album = check_album(resp.response_json, globalconstants.__lastfm__())
 
-        q:str = input("is the above correct (y/n)? ")
+        q:str = input("\nis the above correct (y/n)? ")
         if q.lower() == globalconstants.__yes__():
             print("getting album metadata...\n")
             result_list = get_album_data_from_source(album, resp.response_json)
             if result_list:
                 resp.result_list = result_list
+
             elif globalconstants.__debugflg__():
                 logger.error("album data could not be retrieved from source...")
 
         elif q.lower() == globalconstants.__no__() and input("try again (y/n)? ").lower() == globalconstants.__yes__():
-            result_list = valid_discogs_flow(album_query)
+            result_list = retry(album_query, False)
             if result_list:
                 resp.result_list = result_list
+
             elif globalconstants.__debugflg__():
                 logger.error("discogs list came back empty...")
+
+    if not resp.result_list:
+        resp.reset()
 
     return resp
 
@@ -262,8 +334,9 @@ def get_album_image(path:str, album_url:str) -> bool:
                     logger.warning('failed to get image from server - data chunk came back None')
                     return False
 
-                print('downloading image from %s...', album_url)
                 image.write(img)
+
+            print(f'downloading image from {album_url}...')
 
         return True
 
@@ -275,7 +348,7 @@ def get_album_image(path:str, album_url:str) -> bool:
         return False
 
 
-def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved:bool) -> bool:
+def modify_metadata_ffmpeg(path:str, file:str, song:Song, convert_opts:list, is_saved:bool) -> bool:
     '''
         Format a series of ffmpeg commands to add metadata to audio files.
         Yup, this bad boy is an ffmpeg wrapper.
@@ -285,6 +358,7 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
     try:
         ftype = file.split(".")[-1]
         is_mp3 = True if ftype == globalconstants.__mp3__() else False
+        is_convert: bool = convert_opts[0]
 
         parent_dir = os.path.join(os.path.dirname(path), globalconstants.__tmpdir__())
 
@@ -295,35 +369,24 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
 
         new_mp3_title = f'{title.split(".", maxsplit=1)[0]}.mp3'
 
-        og = os.path.join(path, new_mp3_title) if not is_mp3 else dest_file
-        final_mp3_file = os.path.join(dest_file.split(title)[0] , f'{song.track_num}_{new_mp3_title}')
+        og = os.path.join(path, new_mp3_title) if is_convert else dest_file
+        final_file = os.path.join(dest_file.split(title)[0] , f'{song.track_num}_{new_mp3_title}') if is_convert else os.path.join(dest_file.split(title)[0] , f'{song.track_num}_{title}')
 
-        cp_cmd = prompts.copy_to_temp(source_file, dest_file)
-        if globalconstants.__debugflg__():
-            logger.info("%s\n", cp_cmd)
-        
-        subprocess.run([cp_cmd], shell=True, check=False)
+        cmds.cp_cmd(source_file, dest_file)
 
-        if not is_mp3:
-            convert = prompts.convert_to_mp3_with_selected_bitrate(source_file, bit_rate, og)
-            if globalconstants.__debugflg__():
-                logger.info("%s\n", convert)
-            
-            subprocess.run([convert], shell=True, check = False)
+        if not is_mp3 and is_convert:
+            bit_rate: int = convert_opts[1]
+            if bit_rate == 0:
+                raise ValueError("ERROR: invalid bit_rate...")
 
-        ffmpeg_meta_cmd = prompts.save_metadata_ffmpeg(is_saved, og, parent_dir, song, final_mp3_file)
-        if globalconstants.__debugflg__():
-                logger.info("%s\n", ffmpeg_meta_cmd)
-        
-        subprocess.run([ffmpeg_meta_cmd], shell=True, check = False)
+            cmds.convert_cmd(source_file, bit_rate, og)
 
-        rm_cmd = prompts.clean_up(og)
-        if globalconstants.__debugflg__():
-            logger.info("%s\n", rm_cmd)
-        
-        subprocess.run([f'rm {og}'], shell=True, check=False)
+        cmds.add_meta_data_ffmpeg_cmd(is_saved, og, parent_dir, song, final_file)
 
-    except Exception as e:
+        if is_convert:
+            cmds.clean_up_cmd(og)
+
+    except (ValueError, TypeError, TimeoutError, Exception) as e:
         logger.error("failed to convert files...")
 
         if globalconstants.__debugflg__():
@@ -332,6 +395,14 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, bit_rate:int, is_saved
         return False
 
     return True
+
+def manual_fallback() -> list[Song]:
+    '''Call manual methods if search methods fail.'''
+    tracks = manual_search()
+    if not tracks:
+        tracks = manual_entry()
+    
+    return tracks
 
 def save_album_metadata() -> bool:
     '''
@@ -350,8 +421,6 @@ def save_album_metadata() -> bool:
     success = False
     if os.path.exists(path) and os.path.isdir(path):
         album_name = path.split("/")[-1]
-
-        # print("searching for: %s",album_name)
 
         tmp:str = os.path.join(path, globalconstants.__tmpdir__())
 
@@ -377,23 +446,25 @@ def save_album_metadata() -> bool:
             if globalconstants.__debugflg__():
                 odno_response.show_exceptions()
             print("Could not get album data...")
-            return False
 
-        tracks = odno_response.result_list
-        if len(tracks) == 0:
-            tracks = manual_search()
-            if len(tracks) == 0:
-                ##TODO: manual_entry()
+        tracks = []
+        if not odno_response.result_list:
+            tracks = retry(discogs_failed=True)
+            if not tracks:
                 return False
-
-        bit_rate = prompts.get_bit_rate()
-
+        else:
+            tracks = odno_response.result_list
+        
         is_saved = False
+        is_convert = prompts.do_convert()
+        conversion = [is_convert, 0]
+        if is_convert:
+            conversion[1] = prompts.get_bit_rate()
         for i in tracks:
-            if not is_saved:
+            if not is_saved and i.cover not in "":
                 is_saved = get_album_image(tmp, i.cover)
             dir_track = dir_list.popleft()
-            success = modify_metadata_ffmpeg(tmp, dir_track, i, bit_rate, is_saved)
+            success = modify_metadata_ffmpeg(tmp, dir_track, i, conversion, is_saved)
 
             if not success:
                 print("conversion failed...")

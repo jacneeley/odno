@@ -3,10 +3,10 @@ import sys
 from bs4 import BeautifulSoup
 
 import discogs_client
-import scripts.globalconstants as globalconstants
-import scripts.odnologging as odnologging
+import core.globalconstants as globalconstants
+import core.odnologging as odnologging
 
-from src.utility import convert_date_str
+from core.utility import convert_date_str
 from src.models import ResponseBodyBuilder, ResponseBody
 
 logger = odnologging.create_logger("fetcher.py")
