@@ -33,8 +33,8 @@ def __no__() -> str:
     return "n"
 
 def __tmpdir__() -> str:
-    '''MP3_ALBUM'''
-    return "MP3_ALBUM"
+    '''ALBUM'''
+    return "ALBUM"
 
 def __mp3__() -> str:
     return "mp3"

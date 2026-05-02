@@ -4,7 +4,11 @@ import sys
 import datetime
 import subprocess
 
-import src.prompts as prompts
+import core.prompts as prompts
+import core.odnologging as odnologging
+import core.globalconstants as globalconstants
+
+logger = odnologging.create_logger("utility.py")
 
 def convert_date_str(date_time:str):
     '''
@@ -21,6 +25,9 @@ def convert_date_str(date_time:str):
 
     if len(date_time) == 4:
         return datetime.datetime.strptime(date_time, "%Y")
+
+    if "/" in date_time:
+        return datetime.datetime.strptime(date_time, "%m/%d/%Y")
 
     return datetime.datetime.strptime(date_time, "%Y-%m-%d")
 
@@ -39,25 +46,31 @@ def bs_for_string(arr:list[str], target:str, ftype:bool, remove:bool) -> bool:
             * bool True if target is found else False.
 
     '''
-    arr.sort()
-    l, r = 0, len(arr) - 1
+    try:
+        arr.sort()
+        l, r = 0, len(arr) - 1
 
-    while l <= r:
-        m = l + (r - l) // 2
-        curr = arr[m].lower().split(".")[-1] if ftype else arr[m].lower().split(".")[0]
-        if target == curr:
-            if remove:
-                del arr[m]
+        while l <= r:
+            m = l + (r - l) // 2
+            curr = arr[m].lower().split(".")[-1] if ftype else arr[m].lower().split(".")[0]
+            if target == curr:
+                if remove:
+                    del arr[m]
 
-            return True
+                return True
 
-        if curr < target:
-            l = m + 1
+            if curr < target:
+                l = m + 1
 
-        else:
-            r = m - 1
+            else:
+                r = m - 1
 
-    return False
+        return False
+
+    except IndexError:
+        if globalconstants.__debugflg__():
+            logger.critical("bs_for_string() failed catastrophically...")
+
 
 def get_track_file_value(track:str) -> int:
     '''
@@ -69,16 +82,21 @@ def get_track_file_value(track:str) -> int:
         returns:
             * int value extracted from file name. 
     '''
-    if "-" in track:
-        return int(track.split("-")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
+    try:
+        if "-" in track:
+            return int(track.split("-")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
 
-    if "_" in track:
-        return int(track.split("_")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
+        if "_" in track:
+            return int(track.split("_")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
 
-    if "track" in track:
-        return int(track.split(".")[0].replace("track",""))
+        if "track" in track:
+            return int(track.split(".")[0].replace("track",""))
 
-    return int(track.split(".")[0])
+        return int(track.split(".")[0])
+    
+    except TypeError:
+        if globalconstants.__debugflg__():
+            logger.critical("get_track_file_value() - failed to convert value to int")
 
 def merge(track_list, l, m, r):
     '''
@@ -142,14 +160,22 @@ def sort_tracks(track_list:list[str]) -> None:
         bs_for_string(track_list, "cover", False, True)
         merge_sort(track_list, 0, len(track_list) - 1 )
 
-    except ValueError:
+    except ValueError as ve:
         prompts.bad_file_names()
+
+        if globalconstants.__debugflg__():
+            logger.exception(ve, ve.__traceback__)
+
         sys.exit()
 
-    except IndexError:
+    except (IndexError, TypeError) as ue:
         prompts.unexpected()
+
+        if globalconstants.__debugflg__():
+            logger.exception(ue, ue.__traceback__)
+
         sys.exit()
-    
+
 def remove_wavs(path:str) -> None:
     '''
         prompt the user if they wish to remove the original wav files from the rip.
@@ -157,12 +183,20 @@ def remove_wavs(path:str) -> None:
         parameters:
             * path -> location of the wav files.
     '''
+    try:
+        items = os.listdir(path)
 
-    items = os.listdir(path)
+        wav_found = bs_for_string(items, "wav", True, False)
 
-    wav_found = bs_for_string(items, "wav", True, False)
+        if wav_found:
+            rm_wav = prompts.rm_wav_prompt()
+            if rm_wav == "y":
+                subprocess.call(f"rm {path}/*.wav" , shell=True)
 
-    if wav_found:
-        rm_wav = prompts.rm_wav_prompt()
-        if rm_wav == "y":
-            subprocess.call(f"rm {path}/*.wav" , shell=True)
+    except IndexError as ie:
+        prompts.unexpected()
+
+        if globalconstants.__debugflg__():
+            logger.exception(ie, ie.__traceback__)
+
+        sys.exit()

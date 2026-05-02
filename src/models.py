@@ -3,8 +3,8 @@ import datetime
 from collections import deque
 import requests
 
-from scripts.globalconstants import __debugflg__
-import scripts.odnologging as odnologging
+from core.globalconstants import __debugflg__
+import core.odnologging as odnologging
 
 logger = odnologging.create_logger("models.py")
 
@@ -102,7 +102,7 @@ class ResponseBody:
     def __init__(self, **kwargs):
         self.url: str = kwargs.get('url', "")
         self.response_code: int = kwargs.get('response_code', 0)
-        self.response:  requests.Response = kwargs.get('response', {})
+        self.response:  requests.Response = kwargs.get('response', None)
         self.response_json: dict = kwargs.get('response_json', {})
         self.result_list: list = kwargs.get('result_list', [])
         self.exception: deque = kwargs.get('exception', deque())
@@ -150,7 +150,19 @@ class ResponseBody:
         while exceptions:
             logger.critical(str(self.exception.pop()))
         del exceptions
-        
+
+    def reset(self) -> None:
+        '''reset response'''
+        self.response_code = 0
+        self.response = None
+        self.response_json = {}
+        self.result_list = []
+        self.is_success = False
+        if self.exception:
+            logger.info("The following exceptions were captured:\n")
+            self.show_exceptions()
+        self.exception = []
+        self.url = ""
 
     def __str__(self):
         return f"response body: [response_code={self.response_code}, response={self.response}, exception={self.exception}, debug={self.debug}]"
