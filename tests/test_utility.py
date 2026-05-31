@@ -3,7 +3,7 @@ import datetime
 
 from unittest.mock import Mock, patch, call
 
-import src.utility as util
+import core.utility as util
 
 @pytest.mark.parametrize("date_time, expected",[
     (
@@ -59,8 +59,8 @@ def test_sort_tracks_cannot_sort(mocker):
         "a", "b", "c" is not a useful sort criteria.
     '''
     track_list = ["tracka.wav", "cover.jpg", "trackb.wav", "trackc.wav"]
-    mock_exit = mocker.patch("src.utility.sys.exit")
+    mock_exit = mocker.patch("core.utility.sys.exit")
 
     util.sort_tracks(track_list)
 
-    mock_exit.assert_called_once()
+    assert not mock_exit.assert_called_once()
