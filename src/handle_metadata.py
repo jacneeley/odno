@@ -149,7 +149,7 @@ def retry_switch(choice, album_query="") -> list[Song]:
         return valid_discogs_flow(album_query)
 
     if choice == globalconstants.__manualsearch__():
-        return manual_search()
+        return manual_search(True)
 
     if choice == globalconstants.__manualentry__():
         return manual_entry()
@@ -187,12 +187,13 @@ def manual_search(is_retry:bool = False) -> list[Song]:
     '''
         Prompt user to perform a manual search if an automated one can't be done or returns undesirable results.
     '''
-    q = input("\nWould you like to do a manual search (y/n)? ") if not is_retry else globalconstants.__yes__() 
+    q = input("\nWould you like to do a manual search (y/n)? ") if not is_retry else globalconstants.__yes__()
     if q.lower() == globalconstants.__yes__():
-        artist_name = input("\nenter artist name: ")
-        album_name = input("enter album name: ")
-
+        artist_name = input("\nenter artist name: ").replace(" ", "+")
+        album_name = input("enter album name: ").replace(" ", "+")
+        
         print(f"\nsearching for {album_name} by {artist_name}")
+
         resp = fetcher.get_album_lastfm(artist_name, album_name)
 
         if not resp.is_success:
