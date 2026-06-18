@@ -90,8 +90,7 @@ def fetch_date_from_music_brainz(mbid:str) -> str:
 
 
     query = globalconstants.__musicbrainzurl__().replace("MBID", mbid)
-    
-    # resp = requests.get(query, timeout=20)
+
     response_body = (ResponseBodyBuilder()
                      .url(query)
                      .debug(globalconstants.__debugflg__())
@@ -99,14 +98,16 @@ def fetch_date_from_music_brainz(mbid:str) -> str:
 
     response_body.get()
 
-    if response_body.debug:
-        logger.info("searching for: %s",query)
-        logger.info("response:\n%s",response_body.response.text)
+
 
     if not response_body.is_success:
         logger.info("Could not get datetime from musicbrainz...\nresponse code: %s", response_body.response_code)
         return "N/A"
-    
+
+    elif response_body.debug:
+        logger.info("searching for: %s",query)
+        logger.info("response:\n%s",response_body.response.text)   
+
     soup = BeautifulSoup(response_body.response.text, features="xml")
     target = soup.find("first-release-date").string
     if not target:
