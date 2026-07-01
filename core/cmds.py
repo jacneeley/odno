@@ -1,10 +1,9 @@
 import subprocess
 
 import core.prompts as prompts
-import core.odnologging as odnologging
-import core.globalconstants as globalconstants
+from core.odnologging import odnologger
 
-logger = odnologging.create_logger("cmds.py")
+MODULE_NAME = "cmds"
 
 def cp_cmd(source_file, dest_file) -> None:
     '''
@@ -19,10 +18,9 @@ def cp_cmd(source_file, dest_file) -> None:
             * unix cp command as string        
     '''
     cpy_cmd = prompts.copy_to_temp(source_file, dest_file)
-    
-    if globalconstants.__debugflg__():
-        logger.info("%s\n", cpy_cmd)
-        
+
+    odnologger.log(log_level="INFO",msg=cpy_cmd, module_name=f'{MODULE_NAME}.cp_cmd')
+
     subprocess.run([cpy_cmd], shell=True, check=False)
 
 def convert_cmd(source_file, bit_rate, og) -> None:
@@ -39,8 +37,7 @@ def convert_cmd(source_file, bit_rate, og) -> None:
     '''
     convert = prompts.convert_to_mp3_with_selected_bitrate(source_file, bit_rate, og)
 
-    if globalconstants.__debugflg__():
-        logger.info("%s\n", convert)
+    odnologger.log(log_level="INFO",msg=convert, module_name=f'{MODULE_NAME}.convert_cmd')
 
     subprocess.run([convert], shell=True, check = False)
 
@@ -60,9 +57,9 @@ def add_meta_data_ffmpeg_cmd(is_saved:bool, og:str, parent_dir:str, song, final_
 
     '''
     ffmpeg_meta_cmd = prompts.save_metadata_ffmpeg(is_saved, og, parent_dir, song, final_file)
-    
-    if globalconstants.__debugflg__():
-        logger.info("%s\n", ffmpeg_meta_cmd)
+
+    odnologger.log(log_level="INFO",
+                   msg=ffmpeg_meta_cmd, module_name=f'{MODULE_NAME}.add_meta_data_ffmpeg_cmd')
 
     if ".wav" in final_file and is_saved:
         #show this to user
@@ -78,8 +75,7 @@ def clean_up_cmd(og:str) -> None:
             unix rm commmand as string
     '''
     rm_cmd = f'rm {og}'
- 
-    if globalconstants.__debugflg__():
-        logger.info("%s\n", rm_cmd)
+
+    odnologger.log(log_level="INFO",msg=rm_cmd, module_name=f'{MODULE_NAME}.clean_up_cmd')
 
     subprocess.run([rm_cmd], shell=True, check=False)

@@ -1,12 +1,13 @@
 '''Module for holding application models.'''
-import datetime
 from collections import deque
+
+import datetime
 import requests
 
-from core.globalconstants import __debugflg__
-import core.odnologging as odnologging
+from src.globalconstants import __debugflg__
+from core.odnoexceptions import OdnoException
 
-logger = odnologging.create_logger("models.py")
+from core.odnologging import odnologger
 
 class Song:
     '''
@@ -105,17 +106,20 @@ class ResponseBody:
         self.response:  requests.Response = kwargs.get('response', None)
         self.response_json: dict = kwargs.get('response_json', {})
         self.result_list: list = kwargs.get('result_list', [])
-        self.exception: deque = kwargs.get('exception', deque())
+        self.errs: deque = kwargs.get('errs', deque())
         self.is_success: bool = kwargs.get('is_success', False)
         self.debug: bool= kwargs.get('debug', __debugflg__())
 
     def get(self):
-        '''Perform a get request on the endpoint url.'''
+        '''
+            Perform a get request on the endpoint url.
+
+            Throws:
+                * OdnoException if an exception is encountered.
+        '''
         try:
             if self.url == "" or not isinstance(self.url, str):
-                self.exception.appendleft(ValueError("ERROR:Invalid URL."))
-                self.is_success = False
-                return self
+                raise ValueError("ERROR:Invalid URL.")
 
             resp:requests.Response = requests.get(self.url, timeout=20)
 
@@ -126,30 +130,40 @@ class ResponseBody:
                 self.is_success = True
 
             if not resp.ok:
-                ##TODO write an app httperror exception?
                 self.is_success = False
-                self.exception.appendleft(
-                    Exception(str(resp.raise_for_status()))
-                )
+                resp.raise_for_status()
 
             if b'xml' not in resp.content:
                 self.response_json = resp.json()
                 self.is_success = True
 
             return self
-        
-        except Exception as e:
-            logger.error(e)
-            self.exception.appendleft(e)
+
+        except (TypeError, ValueError, requests.exceptions.HTTPError) as e:
+            odno_exception:OdnoException = None
+
+            if isinstance(e,TypeError):
+                odno_exception = OdnoException("TypeError: An error ocurred capturing resp.content.", e)
+
+            elif isinstance(e, ValueError):
+                odno_exception = OdnoException("ValueError: Invalid URL", e)
+
+            else:
+                odno_exception = OdnoException(f"HTTPError: GET request to {self.url} could not be completed...", e)
+
+            OdnoException.handle_exception(odno_exception, odno_exception.message, "ResponseBody.get")
+            self.errs.appendleft(odno_exception.message)
             self.is_success = False
             return self
 
-    def show_exceptions(self):
+    def show_errors(self):
         '''log exceptions if any'''
-        exceptions = self.exception.copy()
-        while exceptions:
-            logger.critical(str(self.exception.pop()))
-        del exceptions
+        if __debugflg__():
+            errors = self.errs.copy()
+            odnologger.log(log_level="ERROR", msg="The following error(s) ocurred:")
+            while errors:
+                odnologger.log(log_level="ERROR", msg=f"error:{self.errs.pop()}")
+            del errors
 
     def reset(self) -> None:
         '''reset response'''
@@ -158,14 +172,14 @@ class ResponseBody:
         self.response_json = {}
         self.result_list = []
         self.is_success = False
-        if self.exception:
-            logger.info("The following exceptions were captured:\n")
-            self.show_exceptions()
-        self.exception = []
+        if self.errs:
+            odnologger.log(log_level="WARN", msg="The following exceptions were captured:\n")
+            odnologger.log(log_level="WARN", msg=str(self.errs), module_name='ResponseBody.reset')
+        self.errs = []
         self.url = ""
 
     def __str__(self):
-        return f"response body: [response_code={self.response_code}, response={self.response}, exception={self.exception}, debug={self.debug}]"
+        return f"response body: [response_code={self.response_code}, response={self.response}, debug={self.debug}]"
 
     def __repr__(self):
         return self.__str__()
@@ -182,7 +196,7 @@ class ResponseBodyBuilder:
         '''URL used or get requests'''
         self._params['url'] = url
         return self
-    
+
     def response_code(self, response_code):
         '''Response Code of the http request.'''
         self._params['response_code'] = response_code
@@ -192,7 +206,7 @@ class ResponseBodyBuilder:
         '''response from the http request'''
         self._params['response'] = response
         return self
-    
+
     def response_json(self, response_json):
         '''JSON response from the http request'''
         self._params['response_json'] = response_json
@@ -203,13 +217,11 @@ class ResponseBodyBuilder:
         self._params['result_list'] = result_list
         return self
 
-    def exception(self, exception:Exception):
-        '''Store exception if any have occurred'''
-        if not isinstance(exception, Exception):
-            raise ValueError("ERROR: Invalid Exception")
-        
-        exception_stack:deque = self._params['exception']
-        exception_stack.appendleft(exception)
+    def errs(self, err_msgs:str):
+        '''Store exception err messages if any have occurred'''
+
+        err_stack:deque = self._params['errs']
+        err_stack.appendleft(err_msgs)
         return self
 
     def is_success(self, is_success):

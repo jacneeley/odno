@@ -5,10 +5,10 @@ import datetime
 import subprocess
 
 import core.prompts as prompts
-import core.odnologging as odnologging
-import core.globalconstants as globalconstants
 
-logger = odnologging.create_logger("utility.py")
+from core.odnologging import odnologger
+
+MODULE_NAME = "utility"
 
 def convert_date_str(date_time:str):
     '''
@@ -67,9 +67,8 @@ def bs_for_string(arr:list[str], target:str, ftype:bool, remove:bool) -> bool:
 
         return False
 
-    except IndexError:
-        if globalconstants.__debugflg__():
-            logger.critical("bs_for_string() failed catastrophically...")
+    except IndexError as ie:
+        odnologger.log(msg="bs_for_string() failed catastrophically...", e=ie, module_name='f{MODULE_NAME}.bs_for_string')
 
 
 def get_track_file_value(track:str) -> int:
@@ -94,9 +93,12 @@ def get_track_file_value(track:str) -> int:
 
         return int(track.split(".")[0])
     
-    except TypeError:
-        if globalconstants.__debugflg__():
-            logger.critical("get_track_file_value() - failed to convert value to int")
+    except TypeError as te:
+        odnologger.log(
+            log_level="ERROR",
+            msg="get_track_file_value() - failed to convert value to int",
+            e=te,
+            module_name=f'{MODULE_NAME}.get_track_file_value')
 
 def merge(track_list, l, m, r):
     '''
@@ -161,18 +163,20 @@ def sort_tracks(track_list:list[str]) -> None:
         merge_sort(track_list, 0, len(track_list) - 1 )
 
     except ValueError as ve:
-        prompts.bad_file_names()
-
-        if globalconstants.__debugflg__():
-            logger.exception(ve, ve.__traceback__)
+        odnologger.log(
+            log_level="ERROR",
+            msg=prompts.bad_file_names(),
+            e=ve,
+            module_name=f'{MODULE_NAME}.sort_tracks')
 
         sys.exit()
 
     except (IndexError, TypeError) as ue:
-        prompts.unexpected()
-
-        if globalconstants.__debugflg__():
-            logger.exception(ue, ue.__traceback__)
+        odnologger.log(
+            log_level="ERROR",
+            msg=prompts.unexpected,
+            e=ue,
+            module_name=f'{MODULE_NAME}.sort_tracks')
 
         sys.exit()
 
@@ -194,9 +198,14 @@ def remove_wavs(path:str) -> None:
                 subprocess.call(f"rm {path}/*.wav" , shell=True)
 
     except IndexError as ie:
-        prompts.unexpected()
-
-        if globalconstants.__debugflg__():
-            logger.exception(ie, ie.__traceback__)
+        odnologger.log(
+            log_level="ERROR",
+            msg=prompts.unexpected,
+            e=ie,
+            module_name=f'{MODULE_NAME}.remove_wavs')
 
         sys.exit()
+
+#TODO: write a function to remove log oldest log file after size exceeds 30
+def clean_up_logs():
+    pass
