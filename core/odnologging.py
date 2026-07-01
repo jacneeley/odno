@@ -67,10 +67,9 @@ class _LogManager(object, metaclass=OneLogger):
             case "INFO":
                 self.logging.info(lmsg)
             case "ERROR":
+                self.logging.error(lmsg)
                 if e:
-                    self.logging.exception(lmsg, e)
-                else:
-                    self.logging.error(lmsg)
+                    self.logging.exception("Exception - Cause: (%s)", e)
             case "WARNING":
                 self.logging.warning(lmsg)
             case "DEBUG":
