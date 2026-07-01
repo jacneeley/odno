@@ -3,13 +3,13 @@ import sys
 from bs4 import BeautifulSoup
 
 import discogs_client
-import core.globalconstants as globalconstants
-import core.odnologging as odnologging
+import src.globalconstants as globalconstants
+from core.odnologging import odnologger
 
 from core.utility import convert_date_str
 from src.models import ResponseBodyBuilder, ResponseBody
 
-logger = odnologging.create_logger("fetcher.py")
+MODULE_NAME = "fetcher"
 
 if not globalconstants.__loadenv__():
     print("failed to load env vars...")
@@ -66,13 +66,13 @@ def get_album_lastfm(artist:str, album:str) -> ResponseBody:
                                   .url(query)
                                   .debug(globalconstants.__debugflg__())
                                   .build())
-    
+
     if response_body.debug:
-        logger.info("searching using: %s", query, exc_info=1)
+        odnologger.log(log_level="INFO", msg=f"searching using: {query}", module_name=f"{MODULE_NAME}.get_album_lastfm")
 
     # if response_body.debug and response_body.response:
     #     print("lastfm response:\n", response_body.response)
-    
+
     return response_body.get()
 
 def fetch_date_from_music_brainz(mbid:str) -> str:
@@ -101,30 +101,21 @@ def fetch_date_from_music_brainz(mbid:str) -> str:
 
 
     if not response_body.is_success:
-        logger.info("Could not get datetime from musicbrainz...\nresponse code: %s", response_body.response_code)
+        print("Release Date could not be found...")
+        odnologger.log(log_level="INFO", msg=f"Could not get datetime from musicbrainz...\nresponse code: {response_body.response_code}"
+                       , module_name=f'{MODULE_NAME}.fetch_date_from_music_brainz')
         return "N/A"
 
     elif response_body.debug:
-        logger.info("searching for: %s",query)
-        logger.info("response:\n%s",response_body.response.text)   
+        odnologger.log(log_level="INFO", msg=f"searching for: {query}",
+                         module_name=f'{MODULE_NAME}.fetch_date_from_music_brainz')
+        odnologger.log(log_level="INFO", msg=f"response:{response_body.response.text}",
+                         module_name=f'{MODULE_NAME}.fetch_date_from_music_brainz')
 
     soup = BeautifulSoup(response_body.response.text, features="xml")
     target = soup.find("first-release-date").string
     if not target:
-        logger.info("Could not get datetime from musicbrainz...")
+        print("Could not get datetime from musicbrainz...")
         return "N/A"
 
     return convert_date_str(soup.find("first-release-date").string)
-
-
-if __name__ == "__main__":
-    print("testing connection with supplied client_id & client_secret...")
-    test = auth_user().search("Daydream Nation by Sonic Youth", type="release")
-    results = test[0].data
-    print(results)
-
-    print(get_album_discogs("daydream nation by sonic youth"))
-    print(get_album_lastfm("sonic+youth", "goo"))
-
-    test = fetch_date_from_music_brainz("18eb7b48-83a5-49d8-b8a0-04ee2b123b2d")
-    print(test)

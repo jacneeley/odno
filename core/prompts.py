@@ -1,5 +1,5 @@
 from src.models import Song
-from core.globalconstants import __yes__
+from src.globalconstants import __yes__
 
 def wow_niche() -> None:
     '''
@@ -41,15 +41,20 @@ def get_bit_rate() -> int:
         print("invalid selection.\nTry again.")
         return get_bit_rate()
 
-def bad_file_names():
+def bad_file_names() -> str:
     '''Show error file names are bad.'''
-    print("\nError: Files in track list need to have a numeric order.\n\nRecommended file name format: <tracknum>_<filename>.<filetype>\nor\n<track><tracknum>.<filetype>\n\nexample:\n6_MyFriendGoo.mp3\nOR\ntrack1.wav")
+    msg = "Error: Files in track list need to have a numeric order.\n\nRecommended file name format: <tracknum>_<filename>.<filetype>\nor\n<track><tracknum>.<filetype>\n\nexample:\n6_MyFriendGoo.mp3\nOR\ntrack1.wav"
+    print(msg)
+    return msg
 
 def unexpected():
     '''Unexpected.'''
-    print("An expected error has occurred...")
+    msg = "An expected error has occurred..."
+    print(msg)
+    return msg
 
 def retry_choice_prompt(failed:bool) -> None:
+    '''Display Retry Choices'''
     if failed:
         print("Try the following:\n1.) Manual Search - Enter Album name and Artist Name and search\n2.) Manual Entry - Enter album metadata yourself; works offline.")
     else:

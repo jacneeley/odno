@@ -8,13 +8,14 @@ from collections import deque
 import core.utility as util
 import core.prompts as prompts
 import core.cmds as cmds
-import core.globalconstants as globalconstants
-import core.odnologging as odnologging
+import src.globalconstants as globalconstants
+from core.odnologging import odnologger
+from core.odnoexceptions import OdnoException
 
 import src.fetcher as fetcher
 from src.models import SongBuilder, Song, ResponseBody
 
-logger = odnologging.create_logger("handle_metadata.py")
+MODULE_NAME = "handle_metadata"
 
 def check_album(album:dict, platform:str) -> dict:
     '''
@@ -50,9 +51,9 @@ def check_album(album:dict, platform:str) -> dict:
 
     except KeyError as ke:
         print("Album could not be found...")
-        
-        if globalconstants.__debugflg__():
-            logger.exception(ke)
+        msg = "Album could not be found in lastfm response." if platform == globalconstants.__lastfm__() else "Album could not be found in discogs response."
+        oe = OdnoException(msg, ke)
+        OdnoException.handle_exception(oe, oe.message, "handle_metadata.check_album")
 
     return tmp
 
@@ -64,9 +65,8 @@ def get_album_data_from_source(album:dict, resp:dict) -> list[Song]:
     tracks = []
 
     try:
-        if globalconstants.__debugflg__():
-            logger.info(resp)
-            logger.info(album)
+        odnologger.log(log_level="INFO", msg=f"response: {resp}", module_name=f'{MODULE_NAME}.get_album_data_from_source')
+        odnologger.log(log_level="INFO", msg=f"album: {album}", module_name=f'{MODULE_NAME}.get_album_data_from_source')
 
         album_cover = ""
         genre = ""
@@ -110,18 +110,15 @@ def get_album_data_from_source(album:dict, resp:dict) -> list[Song]:
             track_num += 1
             tracks.append(song)
 
-        if globalconstants.__debugflg__():
-            logger.info(tracks)
+        odnologger.log(log_level="INFO", msg=f"Tracks: {tracks}", module_name=f'{MODULE_NAME}.get_album_data_from_source')
 
-    except KeyError as ke:
-        logger.error("album data could not be retrieved...")
-        if globalconstants.__debugflg__():
-            logger.error("KeyError in JSON response: %s", ke)
+    except (KeyError, ValueError) as e:
+        print("album data could not be retrieved...")
 
-    except ValueError as ve:
-        logger.error("album data could not be retrieved...")
-        if globalconstants.__debugflg__():
-            logger.error("ValueError ocurred building Song: %s", ve)
+        msg = "KeyError in JSON response" if isinstance(e, KeyError) else "ValueError ocurred building song"
+
+        oe = OdnoException(msg, e)
+        OdnoException.handle_exception(oe, oe.message, f"{MODULE_NAME}.get_album_data_from_source")
 
     return tracks
 
@@ -132,7 +129,7 @@ def valid_discogs_flow(album_query:str) -> list[Song]:
 
     if not resp.is_success:
         print("Album data could not be found...")
-        resp.show_exceptions()
+        resp.show_errors()
         return []
 
     album = check_album(resp.response_json, globalconstants.__discogs__())
@@ -157,7 +154,11 @@ def retry_switch(choice, album_query="") -> list[Song]:
     return []
 
 def retry(album_query:str = "", discogs_failed:bool = False) -> list[Song]:
-    '''Fallback if a search fails.'''
+    '''
+        Fallback if a search fails.
+
+        retry is called again if an exception is encountered.
+    '''
     try:
         choices = deque([globalconstants.__retry__(), globalconstants.__manualsearch__(), globalconstants.__manualentry__()])
 
@@ -178,10 +179,10 @@ def retry(album_query:str = "", discogs_failed:bool = False) -> list[Song]:
     except (IndexError, ValueError) as e:
         print("Invalid selection was made...Try again.")
 
-        if globalconstants.__debugflg__():
-            logger.exception(e)
+        oe = OdnoException(message="Invalid selection...", e=e)
+        OdnoException.handle_exception(self=oe, description=oe.message, caller=f"{MODULE_NAME}.retry")
 
-        retry(album_query, discogs_failed)
+        return retry(album_query, discogs_failed)
 
 def manual_search(is_retry:bool = False) -> list[Song]:
     '''
@@ -191,19 +192,18 @@ def manual_search(is_retry:bool = False) -> list[Song]:
     if q.lower() == globalconstants.__yes__():
         artist_name = input("\nenter artist name: ").replace(" ", "+")
         album_name = input("enter album name: ").replace(" ", "+")
-        
+
         print(f"\nsearching for {album_name} by {artist_name}")
 
         resp = fetcher.get_album_lastfm(artist_name, album_name)
 
         if not resp.is_success:
             print("Album data could not be found...")
-            resp.show_exceptions()
+            resp.show_errors()
             prompts.wow_niche()
             return []
 
         album = check_album(resp.response_json, globalconstants.__lastfm__())
-
         if (album["album"] not in "" and album["artist"] not in "") and input("\nis the above correct (y/n)? ").lower() == globalconstants.__yes__():
             return get_album_data_from_source(album, resp.response_json)
 
@@ -250,8 +250,8 @@ def manual_entry(dir_list:list=None, is_retry:bool = False) -> list[Song]:
     except (ValueError, TypeError) as e:
         print("ERROR: invalid input...")
 
-        if globalconstants.__debugflg__():
-            logger.exception(e)
+        oe = OdnoException("invalid input", e)
+        OdnoException.handle_exception(oe, oe.message, f"{MODULE_NAME}.manual_entry")
 
     return tracks
 
@@ -272,13 +272,13 @@ def get_response_from_repo(album_query:str) -> ResponseBody:
     resp = fetcher.get_album_lastfm(artist_str, album_str)
 
     if not resp.is_success:
-        logger.warning("Album could not be found.")
+        print("Album could not be found.")
         result_list = retry(album_query, False)
         if result_list:
             resp.result_list = result_list
             resp.is_success = True
-        elif globalconstants.__debugflg__():
-            logger.error("Retry failed...")
+        else:
+            print("Retry failed...")
 
     else:
         print(f'\nsearching for {query[0]} by {query[1]}')
@@ -291,16 +291,16 @@ def get_response_from_repo(album_query:str) -> ResponseBody:
             if result_list:
                 resp.result_list = result_list
 
-            elif globalconstants.__debugflg__():
-                logger.error("album data could not be retrieved from source...")
+            else:
+                print("album data could not be retrieved from source...")
 
         elif q.lower() == globalconstants.__no__() and input("try again (y/n)? ").lower() == globalconstants.__yes__():
             result_list = retry(album_query, False)
             if result_list:
                 resp.result_list = result_list
 
-            elif globalconstants.__debugflg__():
-                logger.error("discogs list came back empty...")
+            else:
+                print("discogs list came back empty...")
 
     if not resp.result_list:
         resp.reset()
@@ -327,12 +327,12 @@ def get_album_image(path:str, album_url:str) -> bool:
         with open(os.path.join(path,"cover.jpg"), "wb") as image:
             data = requests.get(album_url, stream=True, timeout=20)
             if not data.ok:
-                logger.warning('failed to get image from server - %s', data.status_code)
+                print('failed to get image from server - %s', data.status_code)
                 return False
 
             for img in data.iter_content(1024):
                 if not img:
-                    logger.warning('failed to get image from server - data chunk came back None')
+                    print('failed to get image from server - data chunk came back None')
                     return False
 
                 image.write(img)
@@ -342,9 +342,12 @@ def get_album_image(path:str, album_url:str) -> bool:
         return True
 
     except OSError as e:
-        logger.error("failed to save image.")
-        if globalconstants.__debugflg__():
-            logger.exception(e)
+        print("failed to save image.")
+        
+        odnologger.log(log_level="ERROR", msg="failed to save image...", e=e, module_name=f'{MODULE_NAME}.get_album_image')
+
+        oe = OdnoException("failed to save image", e)
+        OdnoException.handle_exception(oe, oe.message, f"{MODULE_NAME}.get_album_image")
 
         return False
 
@@ -354,8 +357,6 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, convert_opts:list, is_
         Format a series of ffmpeg commands to add metadata to audio files.
         Yup, this bad boy is an ffmpeg wrapper.
     '''
-
-    # ftype = file.split(".")
     try:
         ftype = file.split(".")[-1]
         is_mp3 = True if ftype == globalconstants.__mp3__() else False
@@ -387,11 +388,11 @@ def modify_metadata_ffmpeg(path:str, file:str, song:Song, convert_opts:list, is_
         if is_convert:
             cmds.clean_up_cmd(og)
 
-    except (ValueError, TypeError, TimeoutError, Exception) as e:
-        logger.error("failed to convert files...")
+    except (ValueError, TypeError, TimeoutError) as e:
+        print("failed to convert files...")
 
-        if globalconstants.__debugflg__():
-            logger.exception(e)
+        oe = OdnoException("failed to convert files", e)
+        OdnoException.handle_exception(oe, oe.message, f"{MODULE_NAME}.modify_metadata_ffmpeg")
 
         return False
 
@@ -415,7 +416,7 @@ def save_album_metadata() -> bool:
             *debug -> boolean show console output.
     '''
 
-    print("For best results, make sure album folders match the following: album_name-artist_name.\n")
+    print("For best results, make sure album folders match the following: album_name-artist_name.\n\nUse ctrl-c to quit.\n")
 
     path = input("enter album file path: ")
 
@@ -425,8 +426,7 @@ def save_album_metadata() -> bool:
 
         tmp:str = os.path.join(path, globalconstants.__tmpdir__())
 
-        if globalconstants.__debugflg__():
-            logger.info("tmp_dir: %s", tmp)
+        odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
 
         if os.path.exists(tmp):
             subprocess.call(f"rm -r {tmp}",shell=True)
@@ -438,14 +438,13 @@ def save_album_metadata() -> bool:
 
         os.mkdir(tmp)
 
-        if globalconstants.__debugflg__():
-            logger.info("\ntrack list: %s",dir_list)
+        odnologger.log(msg=f"\ntrack list: {dir_list}", module_name=f'{MODULE_NAME}.save_album_metadata')
 
         odno_response = get_response_from_repo(album_name)
 
         if not odno_response.is_success:
             if globalconstants.__debugflg__():
-                odno_response.show_exceptions()
+                odno_response.show_errors()
             print("Could not get album data...")
 
         tracks = []
@@ -455,7 +454,7 @@ def save_album_metadata() -> bool:
                 return False
         else:
             tracks = odno_response.result_list
-        
+
         is_saved = False
         is_convert = prompts.do_convert()
         conversion = [is_convert, 0]

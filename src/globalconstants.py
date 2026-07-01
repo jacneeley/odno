@@ -22,7 +22,9 @@ def __musicbrainzurl__():
     return os.getenv("MUSIC_BRAINZ_URL")
 
 def __debugflg__() -> bool:
-    return bool(os.getenv("DEBUG"))
+    if os.getenv("DEBUG") == 'True':
+        return True
+    return False
 
 def __yes__() -> str:
     '''y'''
@@ -58,3 +60,6 @@ def __manualsearch__() -> str:
 def __manualentry__() -> str:
     '''MANUAL_ENTRY'''
     return "MANUAL_ENTRY"
+
+def __project_root__() -> str:
+    return os.path.dirname(os.path.abspath(__file__)).split("src")[0]

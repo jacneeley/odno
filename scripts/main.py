@@ -5,11 +5,14 @@ def app() -> None:
     '''
         driver code for the application.
     '''
-    saved = save_album_metadata()
-    if not saved:
-        print("Exiting.")
-    else:
-        print("Complete!")
+    try:
+        saved = save_album_metadata()
+        if not saved:
+            print("Exiting.")
+        else:
+            print("Complete!")
+    except KeyboardInterrupt:
+        print("\nQuit.")
 
 if __name__ == "__main__":
     app()
