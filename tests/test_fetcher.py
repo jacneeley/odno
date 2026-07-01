@@ -2,7 +2,7 @@ import pytest
 
 from bs4 import BeautifulSoup
 
-import core.globalconstants as g
+import src.globalconstants as g
 import src.fetcher as fetcher
 import core.utility as util
 
