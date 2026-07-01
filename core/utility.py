@@ -93,11 +93,11 @@ def get_track_file_value(track:str) -> int:
 
         return int(track.split(".")[0])
     
-    except TypeError as te:
+    except (TypeError,ValueError) as e:
         odnologger.log(
             log_level="ERROR",
             msg="get_track_file_value() - failed to convert value to int",
-            e=te,
+            e=e,
             module_name=f'{MODULE_NAME}.get_track_file_value')
 
 def merge(track_list, l, m, r):
