@@ -1,13 +1,12 @@
 '''Main'''
-from src.handle_metadata import save_album_metadata
+from view.views import ui_driver
 
 def app() -> None:
     '''
         driver code for the application.
     '''
     try:
-        saved = save_album_metadata()
-        if not saved:
+        if not ui_driver():
             print("Exiting.")
         else:
             print("Complete!")

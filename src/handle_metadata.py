@@ -58,10 +58,7 @@ def check_album(album:dict, platform:str) -> dict:
     return tmp
 
 def get_album_data_from_source(album:dict, resp:dict) -> list[Song]:
-    '''
-        retrieve album data from source.
-    '''
-
+    '''retrieve album data from source.'''
     tracks = []
 
     try:
@@ -406,76 +403,91 @@ def manual_fallback() -> list[Song]:
     
     return tracks
 
-def save_album_metadata() -> bool:
-    '''
-        Consume user provided file path to prepare metadata for target album.
+def auto_search(album_name:str) -> list[Song]:
+    '''Search for album metadata using provided album directory.'''
+    odno_response = get_response_from_repo(album_name)
 
-        Album directory should follow: "some/path/to/album_name-artist_name"
+    if not odno_response.is_success:
+        if globalconstants.__debugflg__():
+            odno_response.show_errors()
+        print("Could not get album data...")
 
-        parameters:
-            *debug -> boolean show console output.
-    '''
+    return odno_response.result_list
 
-    print("For best results, make sure album folders match the following: album_name-artist_name.\n\nUse ctrl-c to quit.\n")
-
-    path = input("enter album file path: ")
+def save_album_metadata(tracks:list[Song], dir_list:deque, tmp:str = "") -> bool:
+    '''write metadata to files using FFMPEG'''
+    odnologger.log(msg=f"\ntrack list: {dir_list}", module_name=f'{MODULE_NAME}.save_album_metadata')
 
     success = False
-    if os.path.exists(path) and os.path.isdir(path):
-        album_name = path.split("/")[-1]
+    is_saved = False
 
-        tmp:str = os.path.join(path, globalconstants.__tmpdir__())
+    is_convert = prompts.do_convert()
 
-        odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
+    conversion = [is_convert, 0]
+    if is_convert:
+        conversion[1] = prompts.get_bit_rate()
 
-        if os.path.exists(tmp):
-            subprocess.call(f"rm -r {tmp}",shell=True)
+    for i in tracks:
+        if not is_saved and i.cover not in "":
+            is_saved = get_album_image(tmp, i.cover)
 
-        dir_list = os.listdir(path)
-        util.sort_tracks(dir_list)
+        if dir_list:
+            dir_track = dir_list.popleft()
+            success = modify_metadata_ffmpeg(tmp, dir_track, i, conversion, is_saved)
 
-        dir_list = deque(dir_list)
-
-        os.mkdir(tmp)
-
-        odnologger.log(msg=f"\ntrack list: {dir_list}", module_name=f'{MODULE_NAME}.save_album_metadata')
-
-        odno_response = get_response_from_repo(album_name)
-
-        if not odno_response.is_success:
-            if globalconstants.__debugflg__():
-                odno_response.show_errors()
-            print("Could not get album data...")
-
-        tracks = []
-        if not odno_response.result_list:
-            tracks = retry(discogs_failed=True)
-            if not tracks:
-                return False
-        else:
-            tracks = odno_response.result_list
-
-        is_saved = False
-        is_convert = prompts.do_convert()
-        conversion = [is_convert, 0]
-        if is_convert:
-            conversion[1] = prompts.get_bit_rate()
-        for i in tracks:
-            if not is_saved and i.cover not in "":
-                is_saved = get_album_image(tmp, i.cover)
-            
-            if dir_list:
-                dir_track = dir_list.popleft()
-                success = modify_metadata_ffmpeg(tmp, dir_track, i, conversion, is_saved)
-
-            if not success:
-                print("conversion failed...")
-                break
+        if not success:
+            print("conversion failed...")
+            break
 
     if success:
         util.remove_wavs(tmp)
 
     return success
 
-if __name__ == "__main__":
-    save_album_metadata()
+
+
+def do_process(selection:int = 0) -> bool:
+    '''
+        Perform APP function based on user input.
+        
+        returns:
+            * bool based on success
+    '''
+    if selection == 0 or not isinstance(selection, int):
+        #TODO: throw exception
+        quit()
+
+    path = input("enter album file path to get started: ")
+    tmp:str = os.path.join(path, globalconstants.__tmpdir__())
+
+    odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
+
+    if os.path.exists(tmp):
+        subprocess.call(f"rm -r {tmp}",shell=True)
+
+    dir_list = os.listdir(path)
+    util.sort_tracks(dir_list)
+
+    dir_list = deque(dir_list)
+
+    os.mkdir(tmp)
+
+    tracks = []
+    if os.path.exists(path) and os.path.isdir(path):
+        if selection == 1:
+            print("[WIP] show help info")
+        elif selection == 2:
+            album_name = path.split("/")[-1]
+            tracks = auto_search(album_name)
+        elif selection == 3:
+            tracks = manual_search()
+        elif selection == 4:
+            tracks = manual_entry()
+
+
+        if not tracks:
+            tracks = retry(discogs_failed=True)
+            if not tracks:
+                return False
+
+        return save_album_metadata(tracks, dir_list, tmp)
