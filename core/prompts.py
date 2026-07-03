@@ -60,6 +60,11 @@ def retry_choice_prompt(failed:bool) -> None:
     else:
         print("\nTry the following:\n1.) Retry - Search again.\n2.) Manual Search - Enter Album name and Artist Name and search\n3.)Manual Entry - Enter album metadata yourself; works offline.")
 
+def menu() -> int:
+    '''Start Menu'''
+    print("ODNO - An all-in-one tool for ripping CDs and collecting metadata.")
+    print("For best results, make sure album folders match the following: album_name-artist_name.\n\nUse ctrl-c to quit.\n")
+    print("\nMenu:\n\t1.) Help\n\t2.) Auto Web Search - Uses the folder name to search.\n\t3.) Manual Search - Provide a target folder and enter Artist namd & Album name.\n\t4.) Manual Entry - Enter metadata ; works offline")
 
 #####################
 ### unix commands ###
