@@ -463,8 +463,10 @@ def save_album_metadata() -> bool:
         for i in tracks:
             if not is_saved and i.cover not in "":
                 is_saved = get_album_image(tmp, i.cover)
-            dir_track = dir_list.popleft()
-            success = modify_metadata_ffmpeg(tmp, dir_track, i, conversion, is_saved)
+            
+            if dir_list:
+                dir_track = dir_list.popleft()
+                success = modify_metadata_ffmpeg(tmp, dir_track, i, conversion, is_saved)
 
             if not success:
                 print("conversion failed...")
