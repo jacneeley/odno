@@ -456,38 +456,42 @@ def do_process(selection:int = 0) -> bool:
     if selection == 0 or not isinstance(selection, int):
         #TODO: throw exception
         quit()
+    
+    if selection == 1:
+        prompts.show_help()
+        return False
+    else:
+        path = input("enter album file path to get started: ")
+        tmp:str = os.path.join(path, globalconstants.__tmpdir__())
 
-    path = input("enter album file path to get started: ")
-    tmp:str = os.path.join(path, globalconstants.__tmpdir__())
+        odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
 
-    odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
+        if os.path.exists(tmp):
+            subprocess.call(f"rm -r {tmp}",shell=True)
 
-    if os.path.exists(tmp):
-        subprocess.call(f"rm -r {tmp}",shell=True)
+        dir_list = os.listdir(path)
+        util.sort_tracks(dir_list)
 
-    dir_list = os.listdir(path)
-    util.sort_tracks(dir_list)
+        dir_list = deque(dir_list)
 
-    dir_list = deque(dir_list)
+        os.mkdir(tmp)
 
-    os.mkdir(tmp)
-
-    tracks = []
-    if os.path.exists(path) and os.path.isdir(path):
-        if selection == 1:
-            print("[WIP] show help info")
-        elif selection == 2:
-            album_name = path.split("/")[-1]
-            tracks = auto_search(album_name)
-        elif selection == 3:
-            tracks = manual_search()
-        elif selection == 4:
-            tracks = manual_entry()
+        tracks = []
+        if os.path.exists(path) and os.path.isdir(path):
+            if selection == 2:
+                album_name = path.split("/")[-1]
+                tracks = auto_search(album_name)
+            elif selection == 3:
+                tracks = manual_search()
+            elif selection == 4:
+                tracks = manual_entry()
 
 
-        if not tracks:
-            tracks = retry(discogs_failed=True)
             if not tracks:
-                return False
+                tracks = retry(discogs_failed=True)
+                if not tracks:
+                    return False
 
-        return save_album_metadata(tracks, dir_list, tmp)
+            return save_album_metadata(tracks, dir_list, tmp)
+    
+    return False

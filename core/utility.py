@@ -82,6 +82,7 @@ def get_track_file_value(track:str) -> int:
             * int value extracted from file name. 
     '''
     try:
+        track = track.lower()
         if "-" in track:
             return int(track.split("-")[0]) if track[0].isnumeric() else int(track.split(".")[0].replace("track",""))
 
