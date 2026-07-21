@@ -1,45 +1,69 @@
 import os
 import subprocess
 
+import core.utility as util
+
+from src.globalconstants import __disk_path__
+from core.odno_cache import odno_cache
 from collections import deque
 
-DISC = "/run/user/1000/gvfs/cdda:host=sr0"
-CMD:str = "ffmpeg -i \"<t>\" -vn -c:a copy <dest>"
+from core.odnoexceptions import OdnoException
+
+
+DISK = __disk_path__()
 
 def rip():
     '''rip tracks from disk using ffmpeg'''
-    mpath = os.path.expanduser("~") + "/Music/odno_testing"
+    try: 
+        mpath = os.path.expanduser("~") + "/Music"
 
-    album = input("enter album name: ")
-    artist = input("enter artist name: ")
+        if os.path.isdir(mpath):
+            odno_cache["mpath"] = mpath
 
-    album = album.replace(" ", "_")
-    artist = artist.replace(" ", "_")
+        album = util.clean_input_str("enter album name: ")
+        artist = util.clean_input_str("enter artist name: ")
 
-    #TODO: maybe cache this?
-    album_dir = f"{mpath}/{album}-{artist}"
-    if os.path.isdir(album_dir):
-        subprocess.call(f"rm -rf f{album_dir}")
+        album = album.replace(" ", "_")
+        artist = artist.replace(" ", "_")
 
-    os.mkdir(album_dir)
+        odno_cache['album'] = album
+        odno_cache['artist'] = artist
 
-    disc = os.path.abspath(DISC)
+        album_dir = f"{mpath}/{album}-{artist}"
+        if os.path.isdir(album_dir):
+            subprocess.run(f"rm -rf {album_dir}", shell=True, check=True)
 
-    dir_list = os.listdir(disc)
-    dir_list = deque(dir_list)
+        os.mkdir(album_dir)
+        odno_cache["album_dir"] = album_dir
 
-    print("Starting disc rip. This may take awhile...")
-    for track in dir_list:
-        track_file = track.replace(" ", "").replace(".",".odno.").lower()
-        dest = f"{album_dir}/{track_file}"
+        disk = os.path.abspath(DISK)
+        if os.path.isdir(disk):
+            odno_cache['disk'] = disk
 
-        print(f"ripping {track} from disc to {dest}")
+        dir_list = os.listdir(disk)
+        
+        odno_cache['unsorted_dir_list'] = dir_list
 
-        rip_cmd = f"ffmpeg -i {disc}/'{track}' -vn -c:a copy {dest}"
-        subprocess.run([rip_cmd], shell=True, check=False)
+        dir_list = deque(dir_list)
 
-    print("\nripping complete!")
-    print(f"tracks stored in {album_dir}")
+        print("Starting disc rip. This may take awhile...")
+        for track in dir_list:
+            track_file = track.replace(" ", "").replace(".",".odno.").lower()
+            dest = f"{album_dir}/{track_file}"
 
+            print(f"ripping {track} from disc to {dest}")
+
+            rip_cmd = f"ffmpeg -i {disk}/'{track}' -vn -c:a copy {dest}"
+            subprocess.run([rip_cmd], shell=True, check=True)
+
+        print("\nripping complete!")
+        print(f"tracks stored in {album_dir}")
+    except (TypeError, subprocess.CalledProcessError) as e:
+        print("Rip failed. Make sure disk path is correct and there are valid audio files on disk.")
+        oe = OdnoException("Rip Failed", e)
+        raise oe from e
+
+
+# TODO: delet this soon.
 if __name__ == "__main__":
     rip()

@@ -45,7 +45,7 @@ class OneLogger(type):
 
 class _LogManager(object, metaclass=OneLogger):
     '''
-        Create instances of logger.
+        Create instance of logger.
     '''
     def __init__(self):
         if not hasattr(self, '_initialized'):

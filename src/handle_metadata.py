@@ -8,14 +8,17 @@ from collections import deque
 import core.utility as util
 import core.prompts as prompts
 import core.cmds as cmds
-import src.globalconstants as globalconstants
 from core.odnologging import odnologger
 from core.odnoexceptions import OdnoException
+from core.odno_cache import odno_cache
 
+import src.globalconstants as globalconstants
 import src.fetcher as fetcher
 from src.models import SongBuilder, Song, ResponseBody
 
 MODULE_NAME = "handle_metadata"
+
+#TODO: use cache where applicable
 
 def check_album(album:dict, platform:str) -> dict:
     '''
@@ -54,6 +57,8 @@ def check_album(album:dict, platform:str) -> dict:
         msg = "Album could not be found in lastfm response." if platform == globalconstants.__lastfm__() else "Album could not be found in discogs response."
         oe = OdnoException(msg, ke)
         OdnoException.handle_exception(oe, oe.message, "handle_metadata.check_album")
+
+    odno_cache['album'] = tmp
 
     return tmp
 
@@ -132,7 +137,7 @@ def valid_discogs_flow(album_query:str) -> list[Song]:
     album = check_album(resp.response_json, globalconstants.__discogs__())
 
     if album['album'] and album['artist']:
-        if input("\nis the above correct (y/n)? ").lower() == globalconstants.__yes__():
+        if util.clean_input_str("\nis the above correct (y/n)? ", True) == globalconstants.__yes__():
             return get_album_data_from_source(album, resp.response_json)
 
     return []
@@ -164,7 +169,7 @@ def retry(album_query:str = "", discogs_failed:bool = False) -> list[Song]:
 
         prompts.retry_choice_prompt(discogs_failed)
 
-        sel = int(input("selection: "))
+        sel = util.clean_input_int("selection: ")
         if sel < 1 or sel > len(choices):
             raise ValueError("menu option does not exist...")
 
@@ -185,12 +190,16 @@ def manual_search(is_retry:bool = False) -> list[Song]:
     '''
         Prompt user to perform a manual search if an automated one can't be done or returns undesirable results.
     '''
-    q = input("\nWould you like to do a manual search (y/n)? ") if not is_retry else globalconstants.__yes__()
+    q = util.clean_input_str("\nWould you like to do a manual search (y/n)? ", True) if not is_retry else globalconstants.__yes__()
     if q.lower() == globalconstants.__yes__():
-        artist_name = input("\nenter artist name: ").replace(" ", "+")
-        album_name = input("enter album name: ").replace(" ", "+")
+
+        artist_name = odno_cache.get('artist') if odno_cache.get('artist') else util.clean_input_str("\nenter artist name: ")
+        album_name = odno_cache.get('album') if odno_cache.get('album') else util.clean_input_str("\nenter artist name: ")
 
         print(f"\nsearching for {album_name} by {artist_name}")
+
+        artist_name.replace(" ", "+")
+        album_name.replace(" ", "+")
 
         resp = fetcher.get_album_lastfm(artist_name, album_name)
 
@@ -201,40 +210,45 @@ def manual_search(is_retry:bool = False) -> list[Song]:
             return []
 
         album = check_album(resp.response_json, globalconstants.__lastfm__())
-        if (album["album"] not in "" and album["artist"] not in "") and input("\nis the above correct (y/n)? ").lower() == globalconstants.__yes__():
+        if (album["album"] not in "" and album["artist"] not in "") and util.clean_input_str("\nis the above correct (y/n)? ", True) == globalconstants.__yes__():
             return get_album_data_from_source(album, resp.response_json)
 
     prompts.wow_niche()
     return []
 
-
 def manual_entry(dir_list:list=None, is_retry:bool = False) -> list[Song]:
     '''Allow user to enter track metadata via inputs as a fallback if fetchers return no result.'''
     try:
-        if is_retry and input("\nEnter metadata manually (y/n)? ").lower() == globalconstants.__no__():
+        if is_retry and util.clean_input_str("\nEnter metadata manually (y/n)? ", True) == globalconstants.__no__():
             return []
 
         if dir_list is None:
             dir_list = []
 
         tracks = []
-        album_len = int(input("\nNumber of tracks: ")) if not dir_list else len(dir_list)
+        album_len = util.clean_input_int("\nNumber of tracks: ") if not dir_list else len(dir_list)
 
-        album = input("album name: ")
-        artist = input("artist name: ")
-        genre = input("genre: ")
-        year = util.convert_date_str(input("year (mm/dd/yyyy): "))
-        cover = input("Provide album image url (optional | most image url links from search engine are supported): ")
+        artist_name = odno_cache.get('artist') if odno_cache.get('artist') else util.clean_input_str("\nenter artist name: ")
+        album_name = odno_cache.get('album') if odno_cache.get('album') else util.clean_input_str("\nenter album name: ")
+
+        artist_name.replace(" ", "+")
+        album_name.replace(" ", "+")
+
+        genre = util.clean_input_str("\ngenre: ")
+        year = util.convert_date_str(util.clean_input_str("\nyear (mm/dd/yyyy): "))
+	
+	# TODO: test what happens when a bad url is provided.
+        cover = util.clean_input_str("\nProvide album image url (optional | most image url links from search engine are supported): ")
 
         track_num = 1
         while track_num <= album_len:
-            name = input(f'track {track_num} name: ')
+            name = util.clean_input_str(f'track {track_num} name: ')
 
             song = (SongBuilder()
                     .title(name)
-                    .album(album)
-                    .artist(artist)
-                    .album_artist(artist)
+                    .album(album_name)
+                    .artist(artist_name)
+                    .album_artist(artist_name)
                     .genre(genre)
                     .track_num(track_num)
                     .year(year)
@@ -281,8 +295,8 @@ def get_response_from_repo(album_query:str) -> ResponseBody:
         print(f'\nsearching for {query[0]} by {query[1]}')
         album = check_album(resp.response_json, globalconstants.__lastfm__())
 
-        q:str = input("\nis the above correct (y/n)? ")
-        if q.lower() == globalconstants.__yes__():
+        q:str = util.clean_input_str("\nis the above correct (y/n)? ", True)
+        if q == globalconstants.__yes__():
             print("getting album metadata...\n")
             result_list = get_album_data_from_source(album, resp.response_json)
             if result_list:
@@ -291,7 +305,7 @@ def get_response_from_repo(album_query:str) -> ResponseBody:
             else:
                 print("album data could not be retrieved from source...")
 
-        elif q.lower() == globalconstants.__no__() and input("try again (y/n)? ").lower() == globalconstants.__yes__():
+        elif q.lower() == globalconstants.__no__() and util.clean_input_str("try again (y/n)? ", True) == globalconstants.__yes__():
             result_list = retry(album_query, False)
             if result_list:
                 resp.result_list = result_list
@@ -340,7 +354,7 @@ def get_album_image(path:str, album_url:str) -> bool:
 
     except OSError as e:
         print("failed to save image.")
-        
+
         odnologger.log(log_level="ERROR", msg="failed to save image...", e=e, module_name=f'{MODULE_NAME}.get_album_image')
 
         oe = OdnoException("failed to save image", e)
@@ -454,14 +468,19 @@ def do_process(selection:int = 0) -> bool:
             * bool based on success
     '''
     if selection == 0 or not isinstance(selection, int):
-        #TODO: throw exception
-        quit()
-    
+        OdnoException.handle_exception(
+            OdnoException("Invalid selection...",
+                          ValueError("choose a correct value from the menu.")),
+                          f"{MODULE_NAME}.do_process")
+
     if selection == 1:
         prompts.show_help()
         return False
     else:
-        path = input("enter album file path to get started: ")
+        path = odno_cache.get('album_dir', None)
+        if not path:
+            path = util.clean_input_str("enter album file path to get started: ")
+
         tmp:str = os.path.join(path, globalconstants.__tmpdir__())
 
         odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
@@ -469,7 +488,7 @@ def do_process(selection:int = 0) -> bool:
         if os.path.exists(tmp):
             subprocess.call(f"rm -r {tmp}",shell=True)
 
-        dir_list = os.listdir(path)
+        dir_list = odno_cache.get('dir_list', os.listdir(path))
         util.sort_tracks(dir_list)
 
         dir_list = deque(dir_list)
@@ -479,13 +498,21 @@ def do_process(selection:int = 0) -> bool:
         tracks = []
         if os.path.exists(path) and os.path.isdir(path):
             if selection == 2:
-                album_name = path.split("/")[-1]
+                album = odno_cache.get('album', None)
+                artist_name = odno_cache.get('artist', None)
+                if album and artist_name:
+                    album_name = f"{album}-{artist_name}"
+                    
+                else:
+                    album_name = path.split("/")[-1]
+
                 tracks = auto_search(album_name)
+
             elif selection == 3:
-                tracks = manual_search()
+                tracks = manual_search(True)
+
             elif selection == 4:
                 tracks = manual_entry()
-
 
             if not tracks:
                 tracks = retry(discogs_failed=True)
@@ -493,5 +520,5 @@ def do_process(selection:int = 0) -> bool:
                     return False
 
             return save_album_metadata(tracks, dir_list, tmp)
-    
+
     return False

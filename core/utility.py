@@ -207,6 +207,49 @@ def remove_wavs(path:str) -> None:
 
         sys.exit()
 
+def clean_input_str(msg:str, yn:bool = False) -> str:
+    '''
+        clean input func value
+
+        parameters:
+            * msg -> string value of input msg
+        
+        returns:
+            * string
+    '''
+    if not yn:
+        return input(msg).strip()
+
+    val = input(msg).lower().strip()
+
+    #TODO: figure out why this is not working.
+    if len(val) != 1 or val == "":
+        print("invalid. answers with 'y/n'")
+        return clean_input_str(msg, yn)
+    
+    return val
+
+def clean_input_int(msg:str) -> int:
+    '''
+    clean input func value
+
+    parameters:
+        * msg -> string value of the input msg
+    
+    returns:
+        * int
+    '''
+    val = input(msg).strip()
+    if not val:
+        return 0
+
+    if len(val) > 1:
+        print("invalid. try again...")
+        return clean_input_int(msg)
+
+    return int(val)
+
 #TODO: write a function to remove log oldest log file after size exceeds 30
 def clean_up_logs():
+    '''TODO'''
     pass
