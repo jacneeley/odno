@@ -6,10 +6,12 @@ def app() -> None:
         driver code for the application.
     '''
     try:
-        if not ui_driver():
-            print("Exiting.")
-        else:
+        if ui_driver():
             print("Complete!")
+	
+        else:
+            print("Exiting.")
+
     except KeyboardInterrupt:
         print("\nQuit.")
 

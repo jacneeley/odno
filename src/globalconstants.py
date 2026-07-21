@@ -1,5 +1,6 @@
 '''Module for application constants.'''
 import os
+import platform
 
 from dotenv import load_dotenv
 
@@ -63,3 +64,12 @@ def __manualentry__() -> str:
 
 def __project_root__() -> str:
     return os.path.dirname(os.path.abspath(__file__)).split("src")[0]
+
+def __disk_path__() -> str:
+    if platform.system():
+        return os.getenv("DISK_LINUX")
+
+    if platform.system() == "Darwin":
+        return os.getenv("DISK_LINUX")
+
+    return os.getenv("DISK_WINDOWS")
