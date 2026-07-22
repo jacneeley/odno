@@ -1,8 +1,8 @@
 '''views'''
 from core.rip import rip
 from core.prompts import metadata_menu, main_menu
-from src.handle_metadata import do_process
 from core.odnoexceptions import OdnoException
+from src.handle_metadata import do_process
 
 from core.utility import clean_input_int
 
@@ -16,6 +16,7 @@ def ui_driver() -> bool:
                 rip()
             except OdnoException as oe:
                 OdnoException.handle_exception(oe, "Disk path could not be constructed, could not be found, or there was nothing on the disk.\nLikely cause: Disc drive could not be accessed.")
+                return False
         elif sel == 2:
             metadata_selection()
         else:

@@ -20,7 +20,7 @@ def rip():
         if os.path.isdir(mpath):
             odno_cache["mpath"] = mpath
 
-        album = util.clean_input_str("enter album name: ")
+        album = util.clean_input_str("\nenter album name: ")
         artist = util.clean_input_str("enter artist name: ")
 
         album = album.replace(" ", "_")
