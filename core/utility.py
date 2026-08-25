@@ -4,32 +4,41 @@ import sys
 import datetime
 import subprocess
 
-import core.prompts as prompts
+from collections import deque
 
-from core.odnologging import odnologger
+import view.prompts as prompts
+
+from core.odno_logging import odnologger
+from exceptions.odno_exceptions import OdnoException
 
 MODULE_NAME = "utility"
 
-def convert_date_str(date_time:str):
+def convert_date_str(date_time):
     '''
         helper function to return date string as a datetime.
 
         parameters:
             * date_time -> str date to convert to datetime.
     '''
-    if isinstance(date_time,int) and date_time < 10000:
-        return datetime.datetime.strptime(str(date_time), "%Y")
+    try:
+        if isinstance(date_time, str) and "-" in date_time and len(date_time) == 10 and len(date_time.split("-")[0]) == 2:
+            return datetime.datetime.strptime(date_time, "%m-%d-%Y")
 
-    if "-" in date_time and len(date_time.split("-")) < 3:
-        return datetime.datetime.strptime(date_time, "%Y-%m")
+        if isinstance(date_time,int) and date_time < 10000:
+            return datetime.datetime.strptime(str(date_time), "%Y")
 
-    if len(date_time) == 4:
-        return datetime.datetime.strptime(date_time, "%Y")
+        if "-" in date_time and len(date_time.split("-")) < 3:
+            return datetime.datetime.strptime(date_time, "%Y-%m")
 
-    if "/" in date_time:
-        return datetime.datetime.strptime(date_time, "%m/%d/%Y")
+        if len(date_time) == 4:
+            return datetime.datetime.strptime(date_time, "%Y")
 
-    return datetime.datetime.strptime(date_time, "%Y-%m-%d")
+        if "/" in date_time:
+            return datetime.datetime.strptime(date_time, "%m/%d/%Y")
+
+        return datetime.datetime.strptime(date_time, "%Y-%m-%d")
+    except Exception as e:
+        raise ValueError(f'date: {date_time} could not be parsed...') from e
 
 def bs_for_string(arr:list[str], target:str, ftype:bool, remove:bool) -> bool:
     '''
@@ -47,6 +56,8 @@ def bs_for_string(arr:list[str], target:str, ftype:bool, remove:bool) -> bool:
 
     '''
     try:
+        if isinstance(arr, deque):
+            arr = list(arr)
         arr.sort()
         l, r = 0, len(arr) - 1
 
@@ -181,6 +192,12 @@ def sort_tracks(track_list:list[str]) -> None:
 
         sys.exit()
 
+def sort_log_files_by_date(log_files:list[str]) -> None:
+    try:
+        merge_sort(log_files, 0, len(log_files))
+    except:
+        OdnoException.handle_exception("Unknown log error.", OdnoException("Error occurred managing log files."), "sort_log_files_by_date")
+
 def remove_wavs(path:str) -> None:
     '''
         prompt the user if they wish to remove the original wav files from the rip.
@@ -243,13 +260,66 @@ def clean_input_int(msg:str) -> int:
     if not val:
         return 0
 
-    if len(val) > 1:
+    if len(val) > 99:
         print("invalid. try again...")
         return clean_input_int(msg)
 
     return int(val)
 
-#TODO: write a function to remove log oldest log file after size exceeds 30
+def __sort_log_files(files, stack):
+    f = stack.pop()
+    if not files:
+        files.append(f)
+    elif f > files[-1]:
+        files.append(f)
+    else:
+        # sort_log_files_by_date(files)
+        # files.sort()
+        loc = 0
+        for i, j in enumerate(files):
+            if j > f:
+                loc = i
+                break
+
+        tmp:list = files[:loc]
+        tmp.append(f)
+        files = tmp + files[loc:]
+
+    return files
+
+
+
 def clean_up_logs():
-    '''TODO'''
-    pass
+    '''manage log directory'''
+    log_dir = os.path.abspath("./.logs")
+    size = 0
+
+    log_files = os.listdir(log_dir)
+    n = len(log_files) - 1
+    stack = []
+    files = []
+
+    while n >= 0:
+        while stack and convert_date_str(log_files[n].split(".log")[0]) > stack[-1]:
+            files = __sort_log_files(files, stack)
+
+        stack.append(convert_date_str(log_files[n].split(".log")[0]))
+        n -= 1
+
+        while n < 0 and stack:
+            #clean up remaining
+            files = __sort_log_files(files, stack)
+
+    def __build_log_file(file:datetime.datetime):
+        return f'{os.path.join(log_dir, file.strftime("%m-%d-%Y"))}.log'
+
+    files = list(map(__build_log_file, files))
+
+    size = sum(list(map(os.path.getsize, files))) / 1024
+    if size > 1024:
+        # delete files until size < 1024
+        f_loc = 0
+        while size >= 1024:
+            size -= os.path.getsize(files[f_loc]) / 1024
+            os.remove(files[f_loc])
+            f_loc += 1
