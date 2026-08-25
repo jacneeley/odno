@@ -1,9 +1,37 @@
+'''Odno Cmds'''
 import subprocess
 
-import core.prompts as prompts
-from core.odnologging import odnologger
+from core.odno_logging import odnologger
+from src.models import Song
+
+from exceptions.odno_exceptions import OdnoException 
 
 MODULE_NAME = "cmds"
+
+def handle_subprocess(process:subprocess.CompletedProcess, e:subprocess.CalledProcessError) -> None:
+    '''capture subprocess error and raise as odnoexception'''
+    raise OdnoException(process.stderr, e)
+
+#####################
+### unix commands ###
+#####################
+def save_metadata_ffmpeg(is_saved:str, og:str, parent_dir:str, song:Song, final_file:str) -> str:
+    '''Build ffmpeg cmd string using provided parameters.'''
+    if is_saved and ".wav" not in final_file:
+        return f'ffmpeg -i {og} -i {parent_dir}/cover.jpg -map 0 -map 1 -c copy -c:v:1 mjpeg -id3v2_version 3 -write_id3v1 1 -metadata title="{song.title}" -metadata artist="{song.artist}" -metadata album="{song.album}" -metadata album_artist="{song.album_artist}" -metadata disc="{song.cd}" -metadata date="{song.year}" -metadata track="{song.track_num}" -metadata genre="{song.genre}" -metadata:s:v title="{song.album} album cover" -metadata:s:v comment="{song.album} cover (front)" -disposition:v:1 attached_pic {final_file} -hide_banner'.strip()
+
+    if ".wav" not in final_file:
+        return f'ffmpeg -i {og} -map_metadata -1 -metadata title="{song.title}" -metadata artist="{song.artist}" -metadata album="{song.album}" -metadata album_artist="{song.album_artist}" -metadata disc="{song.cd}" -metadata date="{song.year}" -metadata track="{song.track_num}" -metadata genre="{song.genre}" -codec copy {final_file} -hide_banner'.strip()
+
+    return f'ffmpeg -i {og} -metadata title="{song.title}" -metadata artist="{song.artist}" -metadata album="{song.album}" -metadata album_artist="{song.album_artist}" -metadata disc="{song.cd}" -metadata date="{song.year}" -metadata track="{song.track_num}" -metadata genre="{song.genre}" -codec copy {final_file} -hide_banner'.strip()
+
+def convert_to_mp3_with_selected_bitrate(source_file:str, bit_rate:int, new_file:str) -> str:
+    '''Build ffmpeg cmd string using provided parameters.'''
+    return f'ffmpeg -i {source_file} -codec:a libmp3lame -b:a {bit_rate}k {new_file}'
+
+def copy_to_temp(source_file, dest_file) -> str:
+    '''Build copy cmd string using provided parameters.'''
+    return f"cp {source_file} {dest_file}"
 
 def cp_cmd(source_file, dest_file) -> None:
     '''
@@ -17,13 +45,17 @@ def cp_cmd(source_file, dest_file) -> None:
         returns:
             * unix cp command as string        
     '''
-    cpy_cmd = prompts.copy_to_temp(source_file, dest_file)
+    cpy_cmd = copy_to_temp(source_file, dest_file)
 
     odnologger.log(log_level="INFO",msg=cpy_cmd, module_name=f'{MODULE_NAME}.cp_cmd')
 
-    subprocess.run([cpy_cmd], shell=True, check=False)
+    process = None
+    try:
+        process = subprocess.run([cpy_cmd], shell=True, check=False)
+    except subprocess.CalledProcessError as e:
+        handle_subprocess(process, e)
 
-def convert_cmd(source_file, bit_rate, og) -> None:
+def convert_cmd(source_file, bit_rate, new_mp3) -> None:
     '''
         Use selected bit_rate from user input to convert original audio file to an mp3 with selected bit_rate.
 
@@ -35,11 +67,16 @@ def convert_cmd(source_file, bit_rate, og) -> None:
         returns:
             FFMPEG cmd to convert audio file to mp3 with a target bit rate as string.
     '''
-    convert = prompts.convert_to_mp3_with_selected_bitrate(source_file, bit_rate, og)
+    convert = convert_to_mp3_with_selected_bitrate(source_file, bit_rate, new_mp3)
 
     odnologger.log(log_level="INFO",msg=convert, module_name=f'{MODULE_NAME}.convert_cmd')
 
-    subprocess.run([convert], shell=True, check = False)
+    process = None
+    try:
+        process = subprocess.run([convert], shell=True, check=False)
+    except subprocess.CalledProcessError as e:
+        handle_subprocess(process, e)
+
 
 def add_meta_data_ffmpeg_cmd(is_saved:bool, og:str, parent_dir:str, song, final_file:str) -> None:
     '''
@@ -56,7 +93,7 @@ def add_meta_data_ffmpeg_cmd(is_saved:bool, og:str, parent_dir:str, song, final_
             ffmpeg cmd as string
 
     '''
-    ffmpeg_meta_cmd = prompts.save_metadata_ffmpeg(is_saved, og, parent_dir, song, final_file)
+    ffmpeg_meta_cmd = save_metadata_ffmpeg(is_saved, og, parent_dir, song, final_file)
 
     odnologger.log(log_level="INFO",
                    msg=ffmpeg_meta_cmd, module_name=f'{MODULE_NAME}.add_meta_data_ffmpeg_cmd')
@@ -65,7 +102,11 @@ def add_meta_data_ffmpeg_cmd(is_saved:bool, og:str, parent_dir:str, song, final_
         #show this to user
         print("\nCover art was downloaded, but .wav files do not fully support cover art.\n")
 
-    subprocess.run([ffmpeg_meta_cmd], shell=True, check = False)
+    process = None
+    try:
+        process = subprocess.run([ffmpeg_meta_cmd], shell=True, check=False)
+    except subprocess.CalledProcessError as e:
+        handle_subprocess(process, e)
 
 def clean_up_cmd(og:str) -> None:
     '''
@@ -78,4 +119,8 @@ def clean_up_cmd(og:str) -> None:
 
     odnologger.log(log_level="INFO",msg=rm_cmd, module_name=f'{MODULE_NAME}.clean_up_cmd')
 
-    subprocess.run([rm_cmd], shell=True, check=False)
+    process = None
+    try:
+        process = subprocess.run([rm_cmd], shell=True, check=False)
+    except subprocess.CalledProcessError as e:
+        handle_subprocess(process, e)
