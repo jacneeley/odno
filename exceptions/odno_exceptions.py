@@ -1,17 +1,19 @@
 '''OdnoException - Custom Exception that inherits from Exception'''
-from core.odnologging import odnologger
+from core.odno_logging import odnologger
 
 MODULE_NAME = "odnoexceptions"
 
 class OdnoException(Exception):
     '''Capture Exceptions potentially caused by the user.'''
+
+
     def __init__(self, message="error", e:Exception=Exception("Unknown Error")):
         super().__init__(message, e)
         self.message = message
         self._exception = e
+        self.odnologger = odnologger
 
         odnologger.log(log_level="ERROR", msg=self.message, e=self._exception, module_name=MODULE_NAME)
-
 
     def handle_exception(
         self,
@@ -20,10 +22,10 @@ class OdnoException(Exception):
         '''Capture Exception and log it.'''
 
         if self:
-            odnologger.log(log_level="ERROR", msg=self.message, e=self)
+            self.odnologger.log(log_level="ERROR", msg=self.message, e=self)
             msg = f'{description} occurred in {caller} (Exception: {self._exception})'
-            odnologger.log(log_level="ERROR", msg=msg)
-        
+            self.odnologger.log(log_level="ERROR", msg=msg)
+
         else:
             raise NotImplementedError("Failed to implement OdnoException...")
 

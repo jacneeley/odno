@@ -3,7 +3,7 @@ import logging
 import logging.config
 import datetime
 
-from src.globalconstants import __debugflg__, __project_root__
+from src.global_constants import __debugflg__, __project_root__
 
 def _create_logger(name:str="ODNO", log_level="DEBUG") -> logging:
     '''

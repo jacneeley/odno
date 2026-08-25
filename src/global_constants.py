@@ -66,10 +66,11 @@ def __project_root__() -> str:
     return os.path.dirname(os.path.abspath(__file__)).split("src")[0]
 
 def __disk_path__() -> str:
-    if platform.system():
-        return os.getenv("DISK_LINUX")
+#    if platform.system() == "linux":
+#        return os.getenv("DISK_LINUX")
 
-    if platform.system() == "Darwin":
-        return os.getenv("DISK_LINUX")
+#    if platform.system() == "Darwin":
+#        return os.getenv("DISK_LINUX")
 
-    return os.getenv("DISK_WINDOWS")
+#    return os.getenv("DISK_WINDOWS")
+    return os.getenv("DISK_LINUX")
