@@ -3,15 +3,15 @@ import sys
 from bs4 import BeautifulSoup
 
 import discogs_client
-import src.globalconstants as globalconstants
-from core.odnologging import odnologger
+import src.global_constants as global_constants
+from core.odno_logging import odnologger
 
 from core.utility import convert_date_str
 from src.models import ResponseBodyBuilder, ResponseBody
 
 MODULE_NAME = "fetcher"
 
-if not globalconstants.__loadenv__():
+if not global_constants.__loadenv__():
     print("failed to load env vars...")
     sys.exit()
 
@@ -20,7 +20,7 @@ def auth_user() -> discogs_client.Client:
     '''
         Return Client object from discogs using a user_token
     '''
-    d = discogs_client.Client("cdripper/0.1", user_token=globalconstants.__dicogsusertoken__())
+    d = discogs_client.Client("cdripper/0.1", user_token=global_constants.__dicogsusertoken__())
     return d
 
 def get_album_discogs(query:str) -> ResponseBody:
@@ -35,11 +35,11 @@ def get_album_discogs(query:str) -> ResponseBody:
     '''
 
     master_id = auth_user().search(query=query, type="release")[0].data['master_id']
-    url = globalconstants.__discogsurl__() + str(master_id)
+    url = global_constants.__discogsurl__() + str(master_id)
 
     response_body:ResponseBody = (ResponseBodyBuilder()
                                   .url(url)
-                                  .debug(globalconstants.__debugflg__())
+                                  .debug(global_constants.__debugflg__())
                                   .build())
     
     return response_body.get()
@@ -56,15 +56,15 @@ def get_album_lastfm(artist:str, album:str) -> ResponseBody:
         returns:
             * JSON response.
     '''
-    api_key = f"&api_key={globalconstants.__lastfmkey__()}"
+    api_key = f"&api_key={global_constants.__lastfmkey__()}"
     artist_str = f"&artist={artist}"
     album_str = f"&album={album}"
     format_str = "&format=json"
-    query = globalconstants.__lasftfmurl__() + api_key + artist_str + album_str + format_str
+    query = global_constants.__lasftfmurl__() + api_key + artist_str + album_str + format_str
 
     response_body:ResponseBody = (ResponseBodyBuilder()
                                   .url(query)
-                                  .debug(globalconstants.__debugflg__())
+                                  .debug(global_constants.__debugflg__())
                                   .build())
 
     if response_body.debug:
@@ -89,11 +89,11 @@ def fetch_date_from_music_brainz(mbid:str) -> str:
     '''
 
 
-    query = globalconstants.__musicbrainzurl__().replace("MBID", mbid)
+    query = global_constants.__musicbrainzurl__().replace("MBID", mbid)
 
     response_body = (ResponseBodyBuilder()
                      .url(query)
-                     .debug(globalconstants.__debugflg__())
+                     .debug(global_constants.__debugflg__())
                      .build())
 
     response_body.get()

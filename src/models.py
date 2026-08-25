@@ -4,10 +4,10 @@ from collections import deque
 import datetime
 import requests
 
-from src.globalconstants import __debugflg__
-from core.odnoexceptions import OdnoException
+from src.global_constants import __debugflg__
 
-from core.odnologging import odnologger
+from core.odno_logging import odnologger
+from exceptions.odno_exceptions import OdnoException
 
 class Song:
     '''
@@ -70,7 +70,7 @@ class SongBuilder:
 
     def year(self, year):
         '''datetime release date/year'''
-        if not isinstance(year, datetime.datetime):
+        if not isinstance(year, datetime.datetime) and year not in "N/A":
             raise TypeError("year value must be expressed as datetime.")
 
         self._params['year'] = year

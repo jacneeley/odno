@@ -8,7 +8,7 @@ def app() -> None:
     try:
         if ui_driver():
             print("Complete!")
-	
+
         else:
             print("Exiting.")
 
