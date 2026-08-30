@@ -502,7 +502,7 @@ def save_album_metadata(tracks:list[Song], dir_list:deque) -> bool:
     if tmp in "":
         raise FileNotFoundError("ALBUM directory could not be found...")
 
-    is_convert = prompts.do_convert(global_constants.__mp3__() in dir_list)
+    is_convert = prompts.do_convert()
 
     conversion = [is_convert, 0]
     if is_convert:
@@ -523,8 +523,6 @@ def save_album_metadata(tracks:list[Song], dir_list:deque) -> bool:
             return False
 
         mid = int((len(tracks) -1 ) / 2)
-        # source1 = list(dir_list)[:mid]
-        # source2 = list(dir_list)[mid:]
         source1 = []
         count = 0
         while dir_list and count < mid:
