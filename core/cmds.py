@@ -1,7 +1,7 @@
 import subprocess
 
-import core.prompts as prompts
-from core.odnologging import odnologger
+import view.prompts as prompts
+from core.odno_logging import odnologger
 
 MODULE_NAME = "cmds"
 

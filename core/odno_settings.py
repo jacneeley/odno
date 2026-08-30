@@ -38,6 +38,7 @@ def __list_drives() -> None:
 
 def sel_setting(sel: int = 0) -> bool:
     '''Setting Selection'''
+    
     sel = int(input("\nMake Selection: ")) if sel == 0 else sel
     if sel == -1:
         return True
@@ -56,6 +57,7 @@ def sel_setting(sel: int = 0) -> bool:
             return sel_setting(2)
 
         odno_cache["MUSIC_PATH"] = save_location
+        return sel_setting(0)
     else:
         print("Not a valid selection. Try again.")
         return sel_setting()
