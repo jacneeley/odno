@@ -1,7 +1,9 @@
 '''preferences'''
 import os, sys
 import sqlite3
+import subprocess
 
+from core.cmds import install_dependencies
 from src.global_constants import __disk_path__
 from exceptions.odno_exceptions import OdnoException
 
@@ -35,7 +37,7 @@ def init_db():
             );
         ''')
         mpath = f'{os.path.expanduser("~")}/Music'
-        query = f'INSERT INTO USER_PREFS (MUSIC_PATH, DISK, FIRST_RUN) VALUES ("{mpath}", "{__disk_path__()}", 0);'
+        query = f'INSERT INTO USER_PREFS (MUSIC_PATH, DISK) VALUES ("{mpath}", "{__disk_path__()}");'
         query = query.replace("/", "_slash_").replace(":", "_colon_").replace("=", "_equal_")
         c.execute(query)
 
@@ -49,20 +51,23 @@ def init_db():
 
 def get_prefs() -> dict:
     '''get user preferences from sqlite file'''
-    prefs = __get_connection().execute("SELECT * FROM USER_PREFS;").fetchall()
+    #TODO: fix - first run doesn't exist anymore
+    try:
+        prefs = __get_connection().execute("SELECT * FROM USER_PREFS;").fetchall()
 
-    if not prefs:
-        return {"error": "could not open db file."}
-
-    pref_tuple = prefs[0]
-    return {
-        "MUSIC_PATH" : pref_tuple[0].replace("_slash_", "/"),
-        "DISK" : pref_tuple[1].replace("_slash_", "/").replace("_colon_", ":").replace("_equal_", "="),
-        "FIRST_RUN": pref_tuple[2]
-    }
+        pref_tuple = prefs[0]
+        return {
+            "MUSIC_PATH" : pref_tuple[0].replace("_slash_", "/"),
+            "DISK" : pref_tuple[1].replace("_slash_", "/").replace("_colon_", ":").replace("_equal_", "="),
+            "FIRST_RUN": pref_tuple[2]
+        }
+    except sqlite3.OperationalError:
+        print("first init. installing dependencies...")
+        init_db()
+        install_dependencies()
 
 def update_prefs(prefs: dict) -> dict:
-
+    '''update user preferences'''
     query = '''
         UPDATE USER_PREFS
         SET MUSIC_PATH = ?, DISK = ?, FIRST_RUN = 0
@@ -70,7 +75,7 @@ def update_prefs(prefs: dict) -> dict:
     _conn = sqlite3.connect(__conn_str)
 
     try:
-        update:sqlite3.Cursor = _conn.cursor().execute(query, (prefs["MUSIC_PATH"], prefs["DISK"]))
+        update:sqlite3.Cursor = _conn.cursor().execute(query, (prefs["MUSIC_PATH"], prefs["disk"]))
 
         if update:
             _conn.commit()
@@ -81,8 +86,6 @@ def update_prefs(prefs: dict) -> dict:
 
     finally:
         _conn.close()
-    
-
 
 def __sql_error(_conn:sqlite3.Connection, e: sqlite3.OperationalError):
     '''handle sqlite3 error'''
@@ -94,5 +97,11 @@ def __sql_error(_conn:sqlite3.Connection, e: sqlite3.OperationalError):
 
 def start_up():
     '''create db object if sqlite file does not exist'''
-    if not os.path.isfile("user_pref.db") or is_first_run():
-        init_db()
+    try:
+        if not os.path.isfile(".resources/user_pref.db"):
+            init_db()
+            install_dependencies()
+
+    except (subprocess.CalledProcessError) as e:
+        oe = OdnoException(message="install failed", e=e)
+        OdnoException.handle_exception(oe, oe.message, "load_pref.start_up")

@@ -59,8 +59,9 @@ def get_album_lastfm(artist:str, album:str) -> ResponseBody:
     api_key = f"&api_key={global_constants.__lastfmkey__()}"
     artist_str = f"&artist={artist}"
     album_str = f"&album={album}"
+    auto_correct = "&autocorrect=1"
     format_str = "&format=json"
-    query = global_constants.__lasftfmurl__() + api_key + artist_str + album_str + format_str
+    query = global_constants.__lasftfmurl__() + api_key + artist_str + album_str + auto_correct + format_str
 
     response_body:ResponseBody = (ResponseBodyBuilder()
                                   .url(query)

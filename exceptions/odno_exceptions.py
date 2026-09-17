@@ -29,6 +29,9 @@ class OdnoException(Exception):
         else:
             raise NotImplementedError("Failed to implement OdnoException...")
 
+        input("press any key to continue or ctrl-c to quit: ")
+        print()
+
 
     def __str__(self):
         return f"OdnoException: {self.message} (Caused by {self.__cause__})"

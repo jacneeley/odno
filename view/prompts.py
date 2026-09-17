@@ -1,4 +1,3 @@
-from src.models import Song
 from core.odno_settings import sel_setting
 from src.global_constants import __yes__
 
@@ -93,26 +92,5 @@ def show_help() -> None:
     input("press any key to continue: ")
 
 def show_settings() -> None:
-    print("Settings Menu: (Enter \"-1\" to go back)\n\t1.) Select CDROM - this will become the default CDROM Odno searches for.\n\t2.) Update save location - this is where Odno will save converted tracks.")
-    sel_setting(0)
-
-#####################
-### unix commands ###
-#####################
-def save_metadata_ffmpeg(is_saved:str, og:str, parent_dir:str, song:Song, final_file:str) -> str:
-    '''Build ffmpeg cmd string using provided parameters.'''
-    if is_saved and ".wav" not in final_file:
-        return f'ffmpeg -i {og} -i {parent_dir}/cover.jpg -map 0 -map 1 -c copy -c:v:1 mjpeg -id3v2_version 3 -write_id3v1 1 -metadata title="{song.title}" -metadata artist="{song.artist}" -metadata album="{song.album}" -metadata album_artist="{song.album_artist}" -metadata disc="{song.cd}" -metadata date="{song.year}" -metadata track="{song.track_num}" -metadata genre="{song.genre}" -metadata:s:v title="{song.album} album cover" -metadata:s:v comment="{song.album} cover (front)" -disposition:v:1 attached_pic -codec copy {final_file} -hide_banner'.strip()
-
-    if ".wav" not in final_file:
-        return f'ffmpeg -i {og} -map_metadata -1 -metadata title="{song.title}" -metadata artist="{song.artist}" -metadata album="{song.album}" -metadata album_artist="{song.album_artist}" -metadata disc="{song.cd}" -metadata date="{song.year}" -metadata track="{song.track_num}" -metadata genre="{song.genre}" -codec copy {final_file} -hide_banner'.strip()
-
-    return f'ffmpeg -i {og} -metadata title="{song.title}" -metadata artist="{song.artist}" -metadata album="{song.album}" -metadata album_artist="{song.album_artist}" -metadata disc="{song.cd}" -metadata date="{song.year}" -metadata track="{song.track_num}" -metadata genre="{song.genre}" -codec copy {final_file} -hide_banner'.strip()
-
-def convert_to_mp3_with_selected_bitrate(source_file:str, bit_rate:int, new_file:str) -> str:
-    '''Build ffmpeg cmd string using provided parameters.'''
-    return f'ffmpeg -i {source_file} -codec:a libmp3lame -b:a {bit_rate}k {new_file}'
-
-def copy_to_temp(source_file, dest_file) -> str:
-    '''Build copy cmd string using provided parameters.'''
-    return f"cp {source_file} {dest_file}"
+    '''settings menu'''
+    sel_setting()
