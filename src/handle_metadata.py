@@ -472,7 +472,7 @@ def auto_search(album_name:str) -> list[Song]:
 
 def process_tracks(tracks, conversion, dir_list):
     '''prepare and convert tracks'''
-    parent = odno_cache.get("album_path", "")
+    parent = odno_cache.get("album_dir", "")
     tmp = odno_cache.get("album_path_tmp","")
 
     if parent in "" or tmp in "":
@@ -522,6 +522,16 @@ def save_album_metadata(tracks:list[Song], dir_list:deque) -> bool:
                 manual_fallback(is_retry=True)
             return False
 
+        # TODO: consider doing it this way?  
+        # with ThreadPoolExecutor(max_workers=len(__track_map) / 2) as executor:
+        #             futures:list[Future] = []
+        #             for track, raw_audio in __track_map.items():
+        #                 future = executor.submit(__process_tracks, track, raw_audio)
+        #                 futures.append(future)
+
+        #             for f in tqdm(futures, desc="Writing tracks as WAV files", unit="track"):
+        #                 f.result()
+        
         mid = int((len(tracks) -1 ) / 2)
         source1 = []
         count = 0
@@ -536,7 +546,7 @@ def save_album_metadata(tracks:list[Song], dir_list:deque) -> bool:
         tracks1 = tracks[:mid]
         tracks2 = tracks[mid:]
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=len(tracks) / 2) as executor:
             executor.submit(process_tracks, tracks1, conversion, source1)
             executor.submit(process_tracks, tracks2, conversion, source2)
 
@@ -569,55 +579,64 @@ def do_process(selection:int = 0) -> bool:
         returns:
             * bool based on success
     '''
-    path = odno_cache.get('album_dir', None)
-    if not path:
-        path = util.clean_input_str("enter album file path to get started: ")
-        odno_cache['album_path'] = path
+    try:
+        path = odno_cache.get('album_dir', util.clean_input_str("enter album file path to get started: "))
 
-    tmp:str = os.path.join(path, global_constants.__tmpdir__())
+        if 'album_dir' not in odno_cache:
+            odno_cache['album_dir'] = path
 
-    odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
+        if not os.path.isdir(path):
+            fe:FileNotFoundError = FileNotFoundError("invalid folder path")
+            raise OdnoException(f'{path} is not a directory or could not be found. check for typos...', fe)
 
-    if os.path.exists(tmp):
-        subprocess.call(f"rm -r {tmp}",shell=True)
+        tmp:str = os.path.join(path, global_constants.__tmpdir__())
 
-    dir_list = odno_cache.get('dir_list', os.listdir(path))
-    util.sort_tracks(dir_list)
+        odnologger.log(msg=f"tmp_dir: {tmp}", module_name=f'{MODULE_NAME}.save_album_metadata')
 
-    dir_list = deque(dir_list)
-    odno_cache['dir_list'] = dir_list
+        if os.path.exists(tmp):
+            subprocess.call(f"rm -r {tmp}",shell=True)
 
-    os.mkdir(tmp)
-    if not os.path.exists(tmp):
-        print("Directory could not be found...")
-        return False
+        dir_list = odno_cache.get('dir_list', os.listdir(path))
+        util.sort_tracks(dir_list)
 
-    odno_cache["album_path_tmp"] = tmp
+        dir_list = deque(dir_list)
+        odno_cache['dir_list'] = dir_list
 
-    tracks = []
-    if os.path.exists(path) and os.path.isdir(path):
-        if selection == 1:
-            album = odno_cache.get('album', None)
-            artist_name = odno_cache.get('artist', None)
-            if album and artist_name:
-                album_name = f"{album}-{artist_name}"
+        os.mkdir(tmp)
+        if not os.path.exists(tmp):
+            print("Directory could not be found...")
+            return False
 
-            else:
-                album_name = path.split("/")[-1]
+        odno_cache["album_path_tmp"] = tmp
 
-            tracks = auto_search(album_name)
+        tracks = []
+        if os.path.exists(path) and os.path.isdir(path):
+            if selection == 1:
+                album = odno_cache.get('album', None)
+                artist_name = odno_cache.get('artist', None)
+                if album and artist_name:
+                    album_name = f"{album}-{artist_name}"
 
-        elif selection == 2:
-            tracks = manual_search(True)
+                else:
+                    album_name = path.split("/")[-1]
 
-        elif selection == 3:
-            tracks = manual_entry()
+                tracks = auto_search(album_name)
 
-        if not tracks:
-            tracks = retry(discogs_failed=True)
+            elif selection == 2:
+                tracks = manual_search(True)
+
+            elif selection == 3:
+                tracks = manual_entry()
+
             if not tracks:
-                return False
+                tracks = retry(discogs_failed=True)
+                if not tracks:
+                    return False
 
-        return save_album_metadata(tracks, dir_list)
+            return save_album_metadata(tracks, dir_list)
+
+    except OdnoException as oe:
+        print(oe.message)
+        OdnoException.handle_exception(oe, oe.message, f'{MODULE_NAME}.do_process')
 
     return False

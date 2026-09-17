@@ -9,13 +9,53 @@ from core.odno_cache import odno_cache
 def __list_drives() -> None:
     '''List Drives'''
     if sys.platform.startswith(('linux', 'darwin')):
-        print("--- Listing Possible Drives (mounts) ---")
+        import pycdio
+        import cdio
 
-        root_content = os.listdir('/')
+        drives = {}
 
-        for i,item in enumerate(root_content):
-            if item not in ['proc', 'sys', 'dev', 'run']:
-                print(f"{i+1} - /{item}")
+        try:
+            d = cdio.Device(driver_id=pycdio.DRIVER_UNKNOWN)
+            drive_name = d.get_device()
+            info = d.get_hwinfo()
+            cap_info = d.get_drive_cap()
+
+            print("--- Listing Possible Drives (mounts) ---")
+
+            opt_mounts = os.listdir('/dev')
+
+            if "sr0" not in opt_mounts or "cdrom" not in opt_mounts:
+                print("no optical drives found")
+                input("press any key to continue: ")
+                return
+
+            i = 0
+            for _,item in enumerate(opt_mounts):
+                if item in drive_name:
+                    i += 1
+                    print(f"{i} - /{item} ({info[1].strip()} - {info[2].strip()})")
+                    drives[i] = f"/dev/{item}"
+
+            sel = int(input("select an optical drive: "))
+            if not 'disk' in odno_cache or odno_cache['disk'] != drives[sel]:
+                odno_cache['disk'] = drives.get(sel, "None")
+
+            print("\nDriver Availability...")
+            seen = {}
+            for dn in cdio.drivers.keys():
+                driver_id = cdio.drivers[dn]
+                if cdio.have_driver(dn) and not driver_id in seen:
+                    print(f"\tDriver {dn} ({driver_id}) is installed.")
+                    seen[driver_id] = True
+                    if "linux" in dn.lower():
+                        odno_cache['driver'] = pycdio.DRIVER_LINUX
+                        print(f"\nSetting default driver to {dn}\n")
+                        break
+            d.close()
+
+        except (OSError) as e:
+            raise IOError("failed to read Device") from e
+
 
     elif sys.platform.startswith('win'):
         #windows
@@ -38,33 +78,43 @@ def __list_drives() -> None:
 
 def sel_setting(sel: int = 0) -> bool:
     '''Setting Selection'''
-    
+    changed = False
+
+    print("Settings Menu: (Enter \"-1\" to go back)\n\t1.) Select CDROM - this will become the default CDROM Odno searches for.\n\t2.) Update save location - this is where Odno will save converted tracks.") 
+
     sel = int(input("\nMake Selection: ")) if sel == 0 else sel
     if sel == -1:
         return True
-    elif sel == 1:
+
+    if sel == 1:
         __list_drives()
     elif sel == 2:
         curr = odno_cache["MUSIC_PATH"]
         print(f"Current Directory: {curr}")
         save_location = input("\nEnter new save location (directory): ")
 
-        if (save_location == "-1" or save_location == "" or save_location == " "):
+        if(save_location == "-1"):
+            print("canceled\n")
             return True
+
+        if (save_location == "" or save_location == " "):
+            print("nothing to save...\n")
+            return sel_setting()
 
         if not os.path.isdir(save_location):
             print("Not a valid directory!\nTry again...")
             return sel_setting(2)
 
         odno_cache["MUSIC_PATH"] = save_location
-        return sel_setting(0)
+        changed = True
     else:
         print("Not a valid selection. Try again.")
         return sel_setting()
 
-    __update_prefs(odno_cache)
+    if changed:
+        __update_prefs(odno_cache)
 
-    return True
+    return sel_setting()
 
 def __update_prefs(cache = None) -> None:
     if cache:

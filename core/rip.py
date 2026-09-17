@@ -2,37 +2,121 @@
 import os
 import sys
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
+
+from concurrent.futures import ThreadPoolExecutor, Future
+# from multiprocessing import Pool
+
+import io
+import cdio
+import pycdio
+from pydub import AudioSegment
+import wave
+from tqdm import tqdm
 
 import core.utility as util
 
-from src.global_constants import __disk_path__
+# from src.global_constants import __disk_path__
 from core.odno_cache import odno_cache
-
+from core.odno_logging import odnologger
 from exceptions.odno_exceptions import OdnoException
 
-def __process_tracks(dir_list, disk, album_dir):
+__track_map = {}
+
+def init_device() -> None:
+    '''set up cdrom drive'''
     try:
-        for track in dir_list:
-            track_file = track.replace(" ", "").replace(".",".odno.").lower()
-            dest = f"{album_dir}/{track_file}"
+        d = cdio.Device(driver_id=pycdio.DRIVER_UNKNOWN)
+        drive_name = d.get_device()
 
-            print(f"ripping {track} from disc to {dest}")
+        if "GNU/Linux" in cdio.drivers:
+            odno_cache['drive'] = cdio.Device(driver_id=pycdio.DRIVER_LINUX)
+        else:
+            odno_cache['drive'] = d
 
-            rip_cmd = f"ffmpeg -i {disk}/'{track}' -vn -c:a copy {dest}"
-            process = subprocess.run([rip_cmd], shell=True, check=True)
-            if process.returncode != 0:
-                print(f"rip failed: {process.stderr}...skipping...")
-                continue
-            
-    except (TypeError, subprocess.CalledProcessError) as e:
+        odno_cache['disk'] = drive_name
+
+        return drive_name
+
+    except (OSError, cdio.NoDriverError, cdio.DeviceException) as e:
+        msg = "No drive found..."
+        odnologger.log(log_level="ERROR", msg=msg, e=e, module_name="rip.init_device")
+        print(msg)
+
+def __process_tracks(track:str, raw_audio:bytes):
+    try:
+        album_dir = odno_cache.get("album_dir", odno_cache["MUSIC_PATH"])
+
+        with wave.open(f"{album_dir}/{track}.wav", "wb") as w:
+            w.setnchannels(2) #pylint: disable=no-member
+            w.setsampwidth(2) #pylint: disable=no-member
+            w.setframerate(44100) #pylint: disable=no-member
+            w.writeframes(raw_audio) #pylint: disable=no-member
+
+    except Exception as e:
         print("Rip failed. Make sure disk path is correct and there are valid audio files on disk.")
-        oe = OdnoException("Rip Failed", e)
-        raise oe from e
+        ioe = IOError(f"Rip failed on {track}", e)
+        raise ioe from e
 
-def rip():
+def __rip_tracks_off_disc(track_num:int, track:cdio.Track, d:cdio.Device) -> None:
+    """
+    read data per track.
+    
+    parameters:
+        * num -> the track num (int)
+        * track -> cdio.Track
+        * d -> CDROM (cdio.Device)
+
+    Note:
+        To calculate the block size using the Logical Sector Number (LSN) from a CD-ROM,
+        you typically need to know the total size of the CD and the number of sectors it contains.
+        The block size is usually determined by dividing the total size of the CD (in bytes) by the number of sectors.
+        For standard CDs, the block size is often 2048 bytes per sector.
+    """
+    try:
+        # test = track.get_cdtext()
+        # track:cdio.Track = d.get_track(track_num)
+        if track.get_format() == "audio":
+            lsn = track.get_lsn()
+            last_lsn = track.get_last_lsn()
+            # SECTORS_PER_READ = 75
+
+            audio_chunks = []
+            while lsn <= last_lsn:
+                # blocks_to_read = min(SECTORS_PER_READ, last_lsn - lsn + 1)
+                sector = d.read_sectors(lsn, pycdio.READ_MODE_AUDIO)
+                # audio_chunks.append(sector[1].encode('utf-8', errors='surrogateescape'))
+                audio_chunks.append(sector[1])
+                lsn += 1
+
+            audio_bytes = b''.join(a.encode('utf-8', errors="surrogateescape") for a in audio_chunks)
+            __track_map[f"{track_num}_track"] = audio_bytes
+
+        else:
+            print("invalid. Did you insert a CD?")
+            msg = "CDROM contents were not audio files"
+            raise IOError(msg)
+
+    except (IOError, cdio.DeviceException, TypeError, Exception) as e:
+        msg = "failed to rip CD"
+        print(msg)
+        d.close()
+        raise OdnoException(message=msg, e=e) from e
+
+def rip() -> bool:
     '''rip tracks from disk using ffmpeg'''
-    DISK = __disk_path__()
+    # DISK = __disk_path__()
+    drive:cdio.Device = None
+    __track_map.clear()
+
+    try:
+        drive = odno_cache.get('drive', cdio.Device(driver_id=pycdio.DRIVER_UNKNOWN))
+
+    except (KeyError, IOError) as e:
+        oe = OdnoException("CD-ROM cannot be accessed.", e)
+        print(oe.message)
+        OdnoException.handle_exception(oe, oe.message, "rip.rip")
+        return False
+
     mpath = odno_cache.get("MUSIC_PATH", os.path.expanduser("~") + "/Music")
 
     if os.path.isdir(mpath):
@@ -53,38 +137,57 @@ def rip():
             subprocess.run(f"rm -rf {album_dir}", shell=True, check=True)
     except subprocess.CalledProcessError as cpe:
         print("Error: Directory issue...")
-        OdnoException.handle_exception(OdnoException(f"{album_dir} could not be removed for some reason.", cpe), cpe.stderr, "rip.rip")
+        oe = OdnoException(f"{album_dir} could not be removed for some reason.", cpe)
+        raise oe from cpe
 
     os.mkdir(album_dir)
     odno_cache["album_dir"] = album_dir
 
-    disk = os.path.abspath(DISK)
-    if not os.path.isdir(disk):
-        print("No disc or CDROM drive found...")
-        sys.exit()
+    try:
+        t = 1
+        total = drive.get_num_tracks()
+        print("Starting disc rip. This may take awhile...\n")
+        with tqdm(total=total, desc="Ripping Tracks", unit="track") as pbar:
+            while t <= total:
+                # track_list.append(drive.get_track(t))
+                __rip_tracks_off_disc(t, drive.get_track(t), drive)
+                pbar.update(1)
+                t+=1
 
-    odno_cache['disk'] = disk
+    except (OdnoException, cdio.TrackError) as e:
+        if not isinstance(e, OdnoException):
+            e = OdnoException(e)
 
-    dir_list = os.listdir(disk)
-
-    odno_cache['unsorted_dir_list'] = dir_list
-
-    mid = int((len(dir_list) - 1) / 2)
-    print("Starting disc rip. This may take awhile...")
-    # __process_tracks(dir_list, disk, album_dir)
+        OdnoException.handle_exception(e, e.message, "rip.rip")
+        print("exiting to prevent issues")
+        drive.close()
+        sys.exit(1)
 
     try:
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            executor.submit(__process_tracks, dir_list[:mid], disk, album_dir)
-            executor.submit(__process_tracks, dir_list[mid:], disk, album_dir)
+        # review if needed : https://docs.python.org/3/library/concurrent.futures.html
+        with ThreadPoolExecutor(max_workers=len(__track_map) / 2) as executor:
+            futures:list[Future] = []
+            for track, raw_audio in __track_map.items():
+                future = executor.submit(__process_tracks, track, raw_audio)
+                futures.append(future)
 
-    except (OdnoException, Exception) as e:
+            for f in tqdm(futures, desc="Writing tracks as WAV files", unit="track"):
+                f.result()
+
+    except Exception as e:
         OdnoException.handle_exception(e)
         print("Exiting to prevent issues")
         executor.shutdown()
-        sys.exit()
+        # drive.close()
+        sys.exit(1)
 
     executor.shutdown(wait=True)
 
     print("\nripping complete!")
+
+    print("ejecting...")
+    drive.eject_media()
+
     print(f"tracks stored in {album_dir}")
+
+    return True
