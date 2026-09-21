@@ -61,7 +61,7 @@ def check_album(album:dict, platform:str) -> dict:
         print("artist:",   tmp['artist'])
         print("release:",  str(tmp['release_date']))
 
-    except (KeyError, ValueError) as e:
+    except (KeyError, ValueError, Exception) as e:
         if isinstance(KeyError, e):
             print("Album could not be found...")
             msg = "Album could not be found in lastfm response." if platform == global_constants.__lastfm__() else "Album could not be found in discogs response."
