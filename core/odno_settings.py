@@ -3,8 +3,9 @@ import os
 import sys
 import string
 
-from core.load_pref import update_prefs
-from core.odno_cache import odno_cache
+from models.odno_cache import odno_cache
+
+cache = odno_cache.get_cache()
 
 def __list_drives() -> None:
     '''List Drives'''
@@ -18,7 +19,7 @@ def __list_drives() -> None:
             d = cdio.Device(driver_id=pycdio.DRIVER_UNKNOWN)
             drive_name = d.get_device()
             info = d.get_hwinfo()
-            cap_info = d.get_drive_cap()
+            # cap_info = d.get_drive_cap()
 
             print("--- Listing Possible Drives (mounts) ---")
 
@@ -37,8 +38,8 @@ def __list_drives() -> None:
                     drives[i] = f"/dev/{item}"
 
             sel = int(input("select an optical drive: "))
-            if not 'disk' in odno_cache or odno_cache['disk'] != drives[sel]:
-                odno_cache['disk'] = drives.get(sel, "None")
+            if 'disk' not in cache or cache['disk'] != drives[sel]:
+                cache['disk'] = drives.get(sel, "None")
 
             print("\nDriver Availability...")
             seen = {}
@@ -48,7 +49,7 @@ def __list_drives() -> None:
                     print(f"\tDriver {dn} ({driver_id}) is installed.")
                     seen[driver_id] = True
                     if "linux" in dn.lower():
-                        odno_cache['driver'] = pycdio.DRIVER_LINUX
+                        cache['driver'] = pycdio.DRIVER_LINUX
                         print(f"\nSetting default driver to {dn}\n")
                         break
             d.close()
@@ -89,7 +90,7 @@ def sel_setting(sel: int = 0) -> bool:
     if sel == 1:
         __list_drives()
     elif sel == 2:
-        curr = odno_cache["MUSIC_PATH"]
+        curr = cache["MUSIC_PATH"]
         print(f"Current Directory: {curr}")
         save_location = input("\nEnter new save location (directory): ")
 
@@ -105,17 +106,17 @@ def sel_setting(sel: int = 0) -> bool:
             print("Not a valid directory!\nTry again...")
             return sel_setting(2)
 
-        odno_cache["MUSIC_PATH"] = save_location
+        cache["MUSIC_PATH"] = save_location
         changed = True
     else:
         print("Not a valid selection. Try again.")
         return sel_setting()
 
     if changed:
-        __update_prefs(odno_cache)
+        __update_prefs(cache)
 
     return sel_setting()
 
-def __update_prefs(cache = None) -> None:
-    if cache:
-        update_prefs(cache)
+def __update_prefs(_cache = cache) -> None:
+    if _cache:
+        odno_cache.update_cache(_cache)

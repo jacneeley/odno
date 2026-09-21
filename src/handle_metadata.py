@@ -14,11 +14,11 @@ import view.prompts as prompts
 import core.cmds as cmds
 from core.odno_logging import odnologger
 from exceptions.odno_exceptions import OdnoException
-from core.odno_cache import odno_cache
+from models.odno_cache import odno_cache
 
 import src.global_constants as global_constants
 import src.fetcher as fetcher
-from src.models import SongBuilder, Song, ResponseBody
+from models.models import SongBuilder, Song, ResponseBody
 
 MODULE_NAME = "handle_metadata"
 

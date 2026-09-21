@@ -7,7 +7,7 @@ import src.global_constants as global_constants
 from core.odno_logging import odnologger
 
 from core.utility import convert_date_str
-from src.models import ResponseBodyBuilder, ResponseBody
+from models.models import ResponseBodyBuilder, ResponseBody
 
 MODULE_NAME = "fetcher"
 

@@ -2,25 +2,23 @@
 import os
 import sys
 import subprocess
+import wave
 
 from concurrent.futures import ThreadPoolExecutor, Future
-# from multiprocessing import Pool
 
-import io
 import cdio
 import pycdio
-from pydub import AudioSegment
-import wave
+
 from tqdm import tqdm
 
 import core.utility as util
 
-# from src.global_constants import __disk_path__
-from core.odno_cache import odno_cache
+from models.odno_cache import odno_cache
 from core.odno_logging import odnologger
 from exceptions.odno_exceptions import OdnoException
 
 __track_map = {}
+__cache = odno_cache.get_cache()
 
 def init_device() -> None:
     '''set up cdrom drive'''
@@ -29,11 +27,11 @@ def init_device() -> None:
         drive_name = d.get_device()
 
         if "GNU/Linux" in cdio.drivers:
-            odno_cache['drive'] = cdio.Device(driver_id=pycdio.DRIVER_LINUX)
+            __cache['drive'] = cdio.Device(driver_id=pycdio.DRIVER_LINUX)
         else:
-            odno_cache['drive'] = d
+            __cache['drive'] = d
 
-        odno_cache['disk'] = drive_name
+        __cache['disk'] = drive_name
 
         return drive_name
 
@@ -44,7 +42,7 @@ def init_device() -> None:
 
 def __process_tracks(track:str, raw_audio:bytes):
     try:
-        album_dir = odno_cache.get("album_dir", odno_cache["MUSIC_PATH"])
+        album_dir = __cache.get("album_dir", __cache["MUSIC_PATH"])
 
         with wave.open(f"{album_dir}/{track}.wav", "wb") as w:
             w.setnchannels(2) #pylint: disable=no-member
@@ -78,13 +76,10 @@ def __rip_tracks_off_disc(track_num:int, track:cdio.Track, d:cdio.Device) -> Non
         if track.get_format() == "audio":
             lsn = track.get_lsn()
             last_lsn = track.get_last_lsn()
-            # SECTORS_PER_READ = 75
 
             audio_chunks = []
             while lsn <= last_lsn:
-                # blocks_to_read = min(SECTORS_PER_READ, last_lsn - lsn + 1)
                 sector = d.read_sectors(lsn, pycdio.READ_MODE_AUDIO)
-                # audio_chunks.append(sector[1].encode('utf-8', errors='surrogateescape'))
                 audio_chunks.append(sector[1])
                 lsn += 1
 
@@ -109,7 +104,7 @@ def rip() -> bool:
     __track_map.clear()
 
     try:
-        drive = odno_cache.get('drive', cdio.Device(driver_id=pycdio.DRIVER_UNKNOWN))
+        drive = __cache.get('drive', cdio.Device(driver_id=pycdio.DRIVER_UNKNOWN))
 
     except (KeyError, IOError) as e:
         oe = OdnoException("CD-ROM cannot be accessed.", e)
@@ -117,10 +112,10 @@ def rip() -> bool:
         OdnoException.handle_exception(oe, oe.message, "rip.rip")
         return False
 
-    mpath = odno_cache.get("MUSIC_PATH", os.path.expanduser("~") + "/Music")
+    mpath = __cache.get("MUSIC_PATH", os.path.expanduser("~") + "/Music")
 
     if os.path.isdir(mpath):
-        odno_cache["mpath"] = mpath
+        __cache["mpath"] = mpath
 
     album = util.clean_input_str("\nenter album name: ")
     artist = util.clean_input_str("enter artist name: ")
@@ -128,8 +123,8 @@ def rip() -> bool:
     album = album.replace(" ", "_")
     artist = artist.replace(" ", "_")
 
-    odno_cache['album_name'] = album
-    odno_cache['artist_name'] = artist
+    __cache['album_name'] = album
+    __cache['artist_name'] = artist
 
     try:
         album_dir = f"{mpath}/{album}-{artist}"
@@ -141,7 +136,7 @@ def rip() -> bool:
         raise oe from cpe
 
     os.mkdir(album_dir)
-    odno_cache["album_dir"] = album_dir
+    __cache["album_dir"] = album_dir
 
     try:
         t = 1

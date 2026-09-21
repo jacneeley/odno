@@ -1,8 +1,9 @@
 '''Module for application constants.'''
 import os
-import platform
 
 from dotenv import load_dotenv
+
+from core.decode import decode
 
 def __loadenv__() -> bool:
     return load_dotenv()
@@ -11,13 +12,15 @@ def __discogsurl__():
     return os.getenv("DISCOGS_URL")
 
 def __dicogsusertoken__():
-    return os.getenv("DISCOGS_USER_TOKEN")
+    token = decode(os.getenv("DISCOGS_USER_TOKEN"))
+    return token
 
 def __lasftfmurl__():
     return os.getenv("LASTFM_URL")
 
 def __lastfmkey__():
-    return os.getenv("LASTFM_KEY")
+    key = decode(os.getenv("LASTFM_KEY"))
+    return key
 
 def __musicbrainzurl__():
     return os.getenv("MUSIC_BRAINZ_URL")
