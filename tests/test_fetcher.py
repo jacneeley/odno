@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 
-import src.global_constants as g
 import src.fetcher as fetcher
 import core.utility as util
 
@@ -12,16 +11,7 @@ last_fm_test = {"album":{"artist":"Sonic Youth","mbid":"01c1cbdd-f920-4dcb-9377-
 
 xmlRespStr = '<?xml version="1.0" encoding="UTF-8"?><metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#"><release id="18eb7b48-83a5-49d8-b8a0-04ee2b123b2d"><title>Dirty</title><status id="4e304316-386d-3409-af2e-78857eec5cfe">Official</status><quality>normal</quality><packaging id="ec27701a-4a22-37f4-bfac-6616e0f9750a">Jewel Case</packaging><text-representation><language>eng</language><script>Latn</script></text-representation><release-group id="30fef5ef-b1d4-36b5-8f75-f45b8e76c545" type="Album" type-id="f529b476-6e62-324f-b0aa-1f3e33d313fc"><title>Dirty</title><first-release-date>1992-07-20</first-release-date><primary-type id="f529b476-6e62-324f-b0aa-1f3e33d313fc">Album</primary-type></release-group><country>DE</country><release-event-list count="1"><release-event><area id="85752fda-13c4-31a3-bee5-0e5cb1f51dad"><name>Germany</name><sort-name>Germany</sort-name><iso-3166-1-code-list><iso-3166-1-code>DE</iso-3166-1-code></iso-3166-1-code-list></area></release-event></release-event-list><barcode>720642448526</barcode><cover-art-archive><artwork>true</artwork><count>2</count><front>true</front><back>true</back></cover-art-archive></release></metadata>'
 
-def config():
-    g.__loadenv__()
 
-    return {
-        "discogs_url" : g.__discogsurl__(),
-        "discogs_key" : g.__dicogsusertoken__(),
-        "lastfm_url" : g.__lasftfmurl__(),
-        "lastfm_key" : g.__lastfmkey__(),
-        "musicbrainz_url" : g.__musicbrainzurl__()
-    }
 def test_auth_user(mocker):
     mock_get = mocker.patch("src.fetcher.discogs_client.Client")
 
