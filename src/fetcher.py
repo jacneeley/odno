@@ -71,9 +71,6 @@ def get_album_lastfm(artist:str, album:str) -> ResponseBody:
     if response_body.debug:
         odnologger.log(log_level="INFO", msg=f"searching using: {query}", module_name=f"{MODULE_NAME}.get_album_lastfm")
 
-    # if response_body.debug and response_body.response:
-    #     print("lastfm response:\n", response_body.response)
-
     return response_body.get()
 
 def fetch_date_from_music_brainz(mbid:str) -> str:
