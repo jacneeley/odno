@@ -5,8 +5,6 @@ import string
 
 from models.odno_cache import odno_cache
 
-cache = odno_cache.get_cache()
-
 def __list_drives() -> None:
     '''List Drives'''
     if sys.platform.startswith(('linux', 'darwin')):
@@ -14,6 +12,7 @@ def __list_drives() -> None:
         import cdio
 
         drives = {}
+        cache = odno_cache.get_cache()
 
         try:
             d = cdio.Device(driver_id=pycdio.DRIVER_UNKNOWN)
@@ -80,6 +79,7 @@ def __list_drives() -> None:
 def sel_setting(sel: int = 0) -> bool:
     '''Setting Selection'''
     changed = False
+    cache = odno_cache.get_cache()
 
     print("Settings Menu: (Enter \"-1\" to go back)\n\t1.) Select CDROM - this will become the default CDROM Odno searches for.\n\t2.) Update save location - this is where Odno will save converted tracks.") 
 
@@ -88,7 +88,11 @@ def sel_setting(sel: int = 0) -> bool:
         return True
 
     if sel == 1:
-        __list_drives()
+        try:
+            __list_drives()
+        except IOError:
+            print("no drive found...")
+            return sel_setting()
     elif sel == 2:
         curr = cache["MUSIC_PATH"]
         print(f"Current Directory: {curr}")
@@ -117,6 +121,6 @@ def sel_setting(sel: int = 0) -> bool:
 
     return sel_setting()
 
-def __update_prefs(_cache = cache) -> None:
+def __update_prefs(_cache = None) -> None:
     if _cache:
         odno_cache.update_cache(_cache)
