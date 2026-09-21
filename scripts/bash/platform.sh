@@ -18,9 +18,7 @@ detect_platform() {
             ;;
     esac
 
-    # Prefer /etc/os-release (present on nearly all modern distros)
     if [[ -r /etc/os-release ]]; then
-        # shellcheck disable=SC1091
         . /etc/os-release
         local id_like=" ${ID_LIKE:-} "
         case " ${ID:-} " in
@@ -35,7 +33,6 @@ detect_platform() {
             *" opensuse "*|*" suse "*|*" sles "*)
                 echo "suse"; return 0 ;;
         esac
-        # Fall back to ID_LIKE if exact ID didn't match
         case "$id_like" in
             *" debian "*|*" ubuntu "*) echo "deb/ubu"; return 0 ;;
             *" fedora "*|*" rhel "*)   echo "fedora"; return 0 ;;
@@ -44,7 +41,6 @@ detect_platform() {
         esac
     fi
 
-    # Fallbacks if /etc/os-release is missing or unrecognized
     if command -v apt >/dev/null 2>&1;   then echo "deb/ubu"; return 0; fi
     if command -v dnf >/dev/null 2>&1;   then echo "fedora";  return 0; fi
     if command -v pacman >/dev/null 2>&1; then echo "arch";   return 0; fi
