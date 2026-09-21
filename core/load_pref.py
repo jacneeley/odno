@@ -32,8 +32,7 @@ def init_db():
         c.execute('''
             CREATE TABLE IF NOT EXISTS USER_PREFS (
                 MUSIC_PATH TEXT,
-                DISK TEXT,
-                FIRST_RUN INTEGER
+                DISK TEXT
             );
         ''')
         mpath = f'{os.path.expanduser("~")}/Music'
@@ -51,15 +50,13 @@ def init_db():
 
 def get_prefs() -> dict:
     '''get user preferences from sqlite file'''
-    #TODO: fix - first run doesn't exist anymore
     try:
         prefs = __get_connection().execute("SELECT * FROM USER_PREFS;").fetchall()
 
         pref_tuple = prefs[0]
         return {
             "MUSIC_PATH" : pref_tuple[0].replace("_slash_", "/"),
-            "DISK" : pref_tuple[1].replace("_slash_", "/").replace("_colon_", ":").replace("_equal_", "="),
-            "FIRST_RUN": pref_tuple[2]
+            "DISK" : pref_tuple[1].replace("_slash_", "/").replace("_colon_", ":").replace("_equal_", "=")
         }
     except sqlite3.OperationalError:
         print("first init. installing dependencies...")
@@ -70,7 +67,7 @@ def update_prefs(prefs: dict) -> dict:
     '''update user preferences'''
     query = '''
         UPDATE USER_PREFS
-        SET MUSIC_PATH = ?, DISK = ?, FIRST_RUN = 0
+        SET MUSIC_PATH = ?, DISK = ?
     '''
     _conn = sqlite3.connect(__conn_str)
 
