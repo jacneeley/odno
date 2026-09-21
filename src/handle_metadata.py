@@ -1,6 +1,5 @@
 '''common module for handling application flow.'''
 import os
-import requests
 import subprocess
 import time
 import re
@@ -9,23 +8,26 @@ import sys
 from collections import deque, namedtuple
 from concurrent.futures import ThreadPoolExecutor
 
+import requests
+
 import core.utility as util
-import view.prompts as prompts
 import core.cmds as cmds
 from core.odno_logging import odnologger
+import view.prompts as prompts
 from exceptions.odno_exceptions import OdnoException
 from models.odno_cache import odno_cache
+from models.models import SongBuilder, Song, ResponseBody
 
 import src.global_constants as global_constants
 import src.fetcher as fetcher
-from models.models import SongBuilder, Song, ResponseBody
 
 MODULE_NAME = "handle_metadata"
 
-_track_struct = namedtuple("track_struct", "path file")
+_track_struct = namedtuple("track", "path file")
 __track:_track_struct = None
 
 #TODO: use cache where applicable
+__cache = odno_cache.get_cache()
 
 def check_album(album:dict, platform:str) -> dict:
     '''
@@ -69,7 +71,7 @@ def check_album(album:dict, platform:str) -> dict:
         oe = OdnoException(msg, e)
         OdnoException.handle_exception(oe, oe.message, "handle_metadata.check_album")
 
-    odno_cache['album'] = tmp
+    __cache['album'] = tmp
 
     return tmp
 
@@ -95,7 +97,7 @@ def get_album_data_from_source(album:dict, resp:dict) -> list[Song]:
             release = album['release_date']
             track_str = 'title'
             json_resp = resp['tracklist']
-        
+
         else:
             if len(resp['album']['image']) > 0:
                 album_cover = resp['album']['image'][3]["#text"]
@@ -204,8 +206,8 @@ def manual_search(is_retry:bool = False) -> list[Song]:
     q = util.clean_input_str("\nWould you like to do a manual search (y/n)? ", True) if not is_retry else global_constants.__yes__()
     if q.lower() == global_constants.__yes__():
 
-        artist_name = odno_cache.get('artist_name') if odno_cache.get('artist_name', "") else util.clean_input_str("\nenter artist name: ")
-        album_name = odno_cache.get('album_name') if odno_cache.get('album_name', "") else util.clean_input_str("\nenter album name: ")
+        artist_name = __cache.get('artist_name') if __cache.get('artist_name', "") else util.clean_input_str("\nenter artist name: ")
+        album_name = __cache.get('album_name') if __cache.get('album_name', "") else util.clean_input_str("\nenter album name: ")
 
         print(f"\nsearching for {album_name} by {artist_name}")
 
@@ -239,8 +241,8 @@ def manual_entry(dir_list:list=None, is_retry:bool = False) -> list[Song]:
         tracks = []
         album_len = util.clean_input_int("\nNumber of tracks: ") if not dir_list else len(dir_list)
 
-        artist_name = odno_cache.get('artist_name') if odno_cache.get('artist_name', "") else util.clean_input_str("\nenter artist name: ")
-        album_name = odno_cache.get('album_name') if odno_cache.get('album_name', "") else util.clean_input_str("\nenter album name: ")
+        artist_name = __cache.get('artist_name') if __cache.get('artist_name', "") else util.clean_input_str("\nenter artist name: ")
+        album_name = __cache.get('album_name') if __cache.get('album_name', "") else util.clean_input_str("\nenter album name: ")
 
         artist_name.replace(" ", "+")
         album_name.replace(" ", "+")
@@ -249,7 +251,7 @@ def manual_entry(dir_list:list=None, is_retry:bool = False) -> list[Song]:
         year = util.convert_date_str(util.clean_input_str("\nyear (mm/dd/yyyy): "))
 
 	    # TODO: test what happens when a bad url is provided.
-        cover = odno_cache.get('img',
+        cover = __cache.get('img',
             util.clean_input_str("\nProvide album image url (optional | most image url links from search engine are supported): "))
 
         track_num = 1
@@ -344,12 +346,12 @@ def get_album_image(path:str, album_cover_url:str) -> None:
     '''
     try:
         if album_cover_url in "":
-            odno_cache['img_saved'] = False
+            __cache['img_saved'] = False
             return
         
         if "discogs" in album_cover_url:
             print("discogs blocks requests to image files. skipping.")
-            odno_cache['img_saved'] = False
+            __cache['img_saved'] = False
             return
 
         with open(os.path.join(path,"cover.jpg"), "wb") as image:
@@ -361,14 +363,14 @@ def get_album_image(path:str, album_cover_url:str) -> None:
             for img in data.iter_content(1024):
                 if not img:
                     print('failed to get image from server - data chunk came back None')
-                    odno_cache['img_saved'] = False
+                    __cache['img_saved'] = False
                     return
 
                 image.write(img)
 
             print(f'downloading image from {album_cover_url}...')
 
-        odno_cache['img_saved'] = True
+        __cache['img_saved'] = True
 
     except OSError as e:
         print("failed to save image.")
@@ -378,7 +380,7 @@ def get_album_image(path:str, album_cover_url:str) -> None:
         oe = OdnoException("failed to save image", e)
         OdnoException.handle_exception(oe, oe.message, f"{MODULE_NAME}.get_album_image")
 
-        odno_cache['img_saved'] = False
+        __cache['img_saved'] = False
 
 def copy_tracks_to_dest(source:str, dest:str, save_as:str) -> _track_struct:
     '''move track to tmp folder for processing'''
@@ -427,7 +429,7 @@ def modify_metadata_ffmpeg(source:str, song:Song, is_saved:bool, is_convert:bool
         final = source.split(".")
         final_file = f'{final[0]}_final.{final[1]}'
 
-        cmds.add_meta_data_ffmpeg_cmd(is_saved, source, odno_cache["album_path_tmp"], song, final_file)
+        cmds.add_meta_data_ffmpeg_cmd(is_saved, source, __cache["album_path_tmp"], song, final_file)
 
         if is_convert:
             cmds.clean_up_cmd(source)
@@ -472,8 +474,8 @@ def auto_search(album_name:str) -> list[Song]:
 
 def process_tracks(tracks, conversion, dir_list):
     '''prepare and convert tracks'''
-    parent = odno_cache.get("album_dir", "")
-    tmp = odno_cache.get("album_path_tmp","")
+    parent = __cache.get("album_dir", "")
+    tmp = __cache.get("album_path_tmp","")
 
     if parent in "" or tmp in "":
         print("tracks could not be processed. Album directory not found...")
@@ -497,7 +499,7 @@ def save_album_metadata(tracks:list[Song], dir_list:deque) -> bool:
     odnologger.log(msg=f"\ntrack list: {dir_list}", module_name=f'{MODULE_NAME}.save_album_metadata')
 
     success = False
-    tmp = odno_cache.get("album_path_tmp", "")
+    tmp = __cache.get("album_path_tmp", "")
 
     if tmp in "":
         raise FileNotFoundError("ALBUM directory could not be found...")
@@ -516,7 +518,7 @@ def save_album_metadata(tracks:list[Song], dir_list:deque) -> bool:
     else:
         if len(dir_list) != len(tracks):
             if tracks[0].cover:
-                odno_cache['img'] = tracks[0].cover
+                __cache['img'] = tracks[0].cover
             ans = input("\nUnknown ERROR: The length of tracks doesn't match the number of tracks found online\nYou might have a special version. Try Manual Entry (y/n)?")
             if ans == global_constants.__yes__():
                 manual_fallback(is_retry=True)
@@ -552,16 +554,16 @@ def save_album_metadata(tracks:list[Song], dir_list:deque) -> bool:
 
         executor.shutdown(wait=True)
 
-    dir_list = os.listdir(odno_cache["album_path_tmp"])
+    dir_list = os.listdir(__cache["album_path_tmp"])
     util.sort_tracks(dir_list)
     dir_list = deque(dir_list)
 
-    parent = odno_cache["album_path_tmp"]
+    parent = __cache["album_path_tmp"]
     for i in tracks:
         if dir_list:
             dir_track = dir_list.popleft()
             source = f'{parent}/{dir_track}'
-            success = modify_metadata_ffmpeg(source, i, odno_cache['img_saved'], conversion[0])
+            success = modify_metadata_ffmpeg(source, i, __cache['img_saved'], conversion[0])
 
         if not success:
             print("conversion failed...")
@@ -580,10 +582,10 @@ def do_process(selection:int = 0) -> bool:
             * bool based on success
     '''
     try:
-        path = odno_cache.get('album_dir', util.clean_input_str("enter album file path to get started: "))
+        path = __cache.get('album_dir', util.clean_input_str("enter album file path to get started: "))
 
-        if 'album_dir' not in odno_cache:
-            odno_cache['album_dir'] = path
+        if 'album_dir' not in __cache:
+            __cache['album_dir'] = path
 
         if not os.path.isdir(path):
             fe:FileNotFoundError = FileNotFoundError("invalid folder path")
@@ -596,24 +598,24 @@ def do_process(selection:int = 0) -> bool:
         if os.path.exists(tmp):
             subprocess.call(f"rm -r {tmp}",shell=True)
 
-        dir_list = odno_cache.get('dir_list', os.listdir(path))
+        dir_list = __cache.get('dir_list', os.listdir(path))
         util.sort_tracks(dir_list)
 
         dir_list = deque(dir_list)
-        odno_cache['dir_list'] = dir_list
+        __cache['dir_list'] = dir_list
 
         os.mkdir(tmp)
         if not os.path.exists(tmp):
             print("Directory could not be found...")
             return False
 
-        odno_cache["album_path_tmp"] = tmp
+        __cache["album_path_tmp"] = tmp
 
         tracks = []
         if os.path.exists(path) and os.path.isdir(path):
             if selection == 1:
-                album = odno_cache.get('album', None)
-                artist_name = odno_cache.get('artist', None)
+                album = __cache.get('album', None)
+                artist_name = __cache.get('artist', None)
                 if album and artist_name:
                     album_name = f"{album}-{artist_name}"
 
