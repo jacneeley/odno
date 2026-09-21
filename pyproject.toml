@@ -1,0 +1,16 @@
+[project]
+name="ODNO"
+version="0.0.5"
+authors=[{name="Jake Neeley", email="jankudev@tutamail.com"},]
+description="An all-in-one CD Ripper"
+readme="README.md"
+requires-python=">=3.11.2"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+
+[project.urls]
+Homepage = "https://github.com/jacneeley/odno"
+Issue = "https://github.com/jacneeley/odno/issues"
