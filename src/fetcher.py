@@ -3,8 +3,8 @@ import sys
 from bs4 import BeautifulSoup
 
 import discogs_client
-import src.global_constants as global_constants
 from core.odno_logging import odnologger
+import src.global_constants as global_constants
 
 from core.utility import convert_date_str
 from models.models import ResponseBodyBuilder, ResponseBody
