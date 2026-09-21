@@ -72,7 +72,7 @@ def update_prefs(prefs: dict) -> dict:
     _conn = sqlite3.connect(__conn_str)
 
     try:
-        update:sqlite3.Cursor = _conn.cursor().execute(query, (prefs["MUSIC_PATH"], prefs["disk"]))
+        update:sqlite3.Cursor = _conn.cursor().execute(query, (prefs["MUSIC_PATH"], prefs["DISK"]))
 
         if update:
             _conn.commit()
