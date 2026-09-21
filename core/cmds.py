@@ -1,6 +1,6 @@
 import subprocess
 
-from src.models import Song
+from models.models import Song
 from core.odno_logging import odnologger
 
 MODULE_NAME = "cmds"
@@ -100,9 +100,18 @@ def clean_up_cmd(og:str) -> None:
 
 def install_dependencies() -> None:
     '''do project setup and install dependencies'''
+    __setup_env()
     __install_libcdio()
     __install_ffmpeg()
-    #TODO: create env
+
+def __setup_env() -> None:
+    '''set up env file for user'''
+    try:
+        out = subprocess.run(["bash", "./scripts/bash/setup_env.sh"], check=True)
+        out.check_returncode()
+    except subprocess.CalledProcessError as e:
+        print("set up failed...")
+        raise e
 
 def __install_ffmpeg(pkg_mngr:str = "") -> None:
     '''install ffmpeg to system'''
@@ -129,4 +138,3 @@ def __install_libcdio(pkg_mngr:str="") -> None:
     except (subprocess.CalledProcessError) as e:
         print("install failed.")
         raise e
-
