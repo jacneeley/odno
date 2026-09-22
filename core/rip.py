@@ -116,7 +116,7 @@ def rip() -> bool:
     mpath = __cache.get("MUSIC_PATH", os.path.expanduser("~") + "/Music")
 
     if os.path.isdir(mpath):
-        __cache["mpath"] = mpath
+        __cache["MUSIC_PATH"] = mpath
 
     album = util.clean_input_str("\nenter album name: ")
     artist = util.clean_input_str("enter artist name: ")
