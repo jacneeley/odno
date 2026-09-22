@@ -5,6 +5,35 @@ import datetime
 
 from src.global_constants import __debugflg__, __project_root__
 
+__config = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simpleFormatter": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            "datefmt": "",
+        },
+    },
+    "handlers": {
+        "consoleHandler": {
+            "class": "logging.StreamHandler",
+            "formatter": "simpleFormatter",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "odno": {
+            "handlers": ["consoleHandler"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["consoleHandler"],
+        "level": "DEBUG",
+    },
+}
+
 def _create_logger(name:str="ODNO", log_level="DEBUG") -> logging:
     '''
         Read loggerconfig file and then return logging object using module_name provided by client.
@@ -16,7 +45,7 @@ def _create_logger(name:str="ODNO", log_level="DEBUG") -> logging:
             * logging object constructed using the config file and module_name
     '''
     if __debugflg__():
-        logging.config.fileConfig('logging.conf')
+        logging.config.dictConfig(__config)
         logger = logging.getLogger(name)
         logger.setLevel(log_level)
         return logger
@@ -77,4 +106,5 @@ class _LogManager(object, metaclass=OneLogger):
             case _:
                 raise NotImplementedError("Logger was not initialized correctly as log_level could not be determined...")
 
-odnologger = _LogManager()
+def logger() -> _LogManager:
+    return _LogManager()

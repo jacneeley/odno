@@ -1,5 +1,6 @@
 '''Module for application constants.'''
 import os
+import sys
 
 from dotenv import load_dotenv
 
@@ -66,6 +67,9 @@ def __manualentry__() -> str:
     return "MANUAL_ENTRY"
 
 def __project_root__() -> str:
+    if getattr(sys, 'frozen', False):
+        return getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)).split("src")[0])
+
     return os.path.dirname(os.path.abspath(__file__)).split("src")[0]
 
 def __disk_path__() -> str:

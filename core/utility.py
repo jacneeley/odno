@@ -8,10 +8,11 @@ from collections import deque
 
 import view.prompts as prompts
 
-from core.odno_logging import odnologger
+from core.odno_logging import logger
 from exceptions.odno_exceptions import OdnoException
 
 MODULE_NAME = "utility"
+odnologger = logger()
 
 def convert_date_str(date_time):
     '''
