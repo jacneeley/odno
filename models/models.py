@@ -6,7 +6,7 @@ import requests
 
 from src.global_constants import __debugflg__
 
-from core.odno_logging import odnologger
+from core.odno_logging import logger
 from exceptions.odno_exceptions import OdnoException
 
 class Song:
@@ -158,6 +158,7 @@ class ResponseBody:
 
     def show_errors(self):
         '''log exceptions if any'''
+        odnologger = logger()
         if __debugflg__():
             errors = self.errs.copy()
             odnologger.log(log_level="ERROR", msg="The following error(s) ocurred:")
@@ -167,6 +168,7 @@ class ResponseBody:
 
     def reset(self) -> None:
         '''reset response'''
+        odnologger = logger()
         self.response_code = 0
         self.response = None
         self.response_json = {}

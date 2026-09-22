@@ -1,5 +1,5 @@
 '''OdnoException - Custom Exception that inherits from Exception'''
-from core.odno_logging import odnologger
+from core.odno_logging import logger
 
 MODULE_NAME = "odnoexceptions"
 
@@ -11,9 +11,9 @@ class OdnoException(Exception):
         super().__init__(message, e)
         self.message = message
         self._exception = e
-        self.odnologger = odnologger
+        self.odnologger = logger()
 
-        odnologger.log(log_level="ERROR", msg=self.message, e=self._exception, module_name=MODULE_NAME)
+        self.odnologger.log(log_level="ERROR", msg=self.message, e=self._exception, module_name=MODULE_NAME)
 
     def handle_exception(
         self,

@@ -12,7 +12,7 @@ import requests
 
 import core.utility as util
 import core.cmds as cmds
-from core.odno_logging import odnologger
+from core.odno_logging import logger
 import view.prompts as prompts
 from exceptions.odno_exceptions import OdnoException
 from models.odno_cache import odno_cache
@@ -25,6 +25,7 @@ MODULE_NAME = "handle_metadata"
 
 _track_struct = namedtuple("track", "path file")
 __track:_track_struct = None
+odnologger = logger()
 
 #TODO: use cache where applicable
 __cache = odno_cache.get_cache()

@@ -14,11 +14,12 @@ from tqdm import tqdm
 import core.utility as util
 
 from models.odno_cache import odno_cache
-from core.odno_logging import odnologger
+from core.odno_logging import logger
 from exceptions.odno_exceptions import OdnoException
 
 __track_map = {}
 __cache = odno_cache.get_cache()
+odnologger = logger()
 
 def init_device() -> None:
     '''set up cdrom drive'''

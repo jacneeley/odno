@@ -3,13 +3,14 @@ import sys
 from bs4 import BeautifulSoup
 
 import discogs_client
-from core.odno_logging import odnologger
+from core.odno_logging import logger
 import src.global_constants as global_constants
 
 from core.utility import convert_date_str
 from models.models import ResponseBodyBuilder, ResponseBody
 
 MODULE_NAME = "fetcher"
+odnologger = logger()
 
 if not global_constants.__loadenv__():
     print("failed to load env vars...")

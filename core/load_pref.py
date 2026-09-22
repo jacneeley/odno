@@ -4,11 +4,10 @@ import sqlite3
 import subprocess
 
 from core.cmds import install_dependencies
-from src.global_constants import __disk_path__
+from src.global_constants import __disk_path__, __project_root__
 from exceptions.odno_exceptions import OdnoException
 
-__conn_str = ".resources/user_pref.db"
-# _conn:sqlite3.Connection = sqlite3.connect(__conn_str)
+__conn_str = f"{__project_root__()}/.resources/user_pref.db"
 
 def __get_connection() -> sqlite3.Cursor:
     conn = sqlite3.connect(__conn_str)
@@ -95,9 +94,9 @@ def __sql_error(_conn:sqlite3.Connection, e: sqlite3.OperationalError):
 def start_up():
     '''create db object if sqlite file does not exist'''
     try:
-        if not os.path.isfile(".resources/user_pref.db"):
-            init_db()
+        if not os.path.isfile(__conn_str):
             install_dependencies()
+            init_db()
 
     except (subprocess.CalledProcessError) as e:
         oe = OdnoException(message="install failed", e=e)

@@ -1,9 +1,13 @@
+'''commands'''
+import os
 import subprocess
 
 from models.models import Song
-from core.odno_logging import odnologger
+from core.odno_logging import logger
 
 MODULE_NAME = "cmds"
+
+odnologger = logger()
 
 def save_metadata_ffmpeg(is_saved:str, og:str, parent_dir:str, song:Song, final_file:str) -> str:
     '''Build ffmpeg cmd string using provided parameters.'''
@@ -100,9 +104,22 @@ def clean_up_cmd(og:str) -> None:
 
 def install_dependencies() -> None:
     '''do project setup and install dependencies'''
+    __create_project_dirs()
     __setup_env()
     __install_libcdio()
     __install_ffmpeg()
+
+def __create_project_dirs() -> None:
+    from odno.src.global_constants import __project_root__
+
+    root = __project_root__()
+    logs = f"{root}/.logs"
+    if not os.path.exists(logs):
+        os.mkdir(logs)
+
+    resources = f"{root}/.resources"
+    if not os.path.exists(resources):
+        os.mkdir(resources)
 
 def __setup_env() -> None:
     '''set up env file for user'''
