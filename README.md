@@ -51,5 +51,5 @@ A CLI is in the works and is coming soon.
 
 ## Windows?
 
-A Windows version is now available. Check it out the [https://github.com/jacneeley/odno_windows/releases]: Pre-Release
+A Windows version is now available. Check it out the [Pre-Release](https://github.com/jacneeley/odno_windows/releases).
 
