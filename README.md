@@ -51,4 +51,5 @@ A CLI is in the works and is coming soon.
 
 ## Windows?
 
-I am currently working on a windows version. Windows has a completely different API for interacting with CDROMs. I still need time to learn how to work with it. It is coming soon.
+A Windows version is now available. Check it out the [https://github.com/jacneeley/odno_windows/releases]: Pre-Release
+
