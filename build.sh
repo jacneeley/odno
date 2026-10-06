@@ -11,7 +11,3 @@ mkdir ./dist/main/.resources
 mkdir ./dist/main/scripts
 
 cp ./scripts/bash -r ./dist/main/scripts/bash
-
-zip -r dist/odno.zip dist/main/
-
-tar -czvf dist/odno.tar.gz dist/main/
