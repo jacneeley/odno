@@ -59,8 +59,8 @@ def get_prefs() -> dict:
         }
     except sqlite3.OperationalError:
         print("first init. installing dependencies...")
-        init_db()
         install_dependencies()
+        init_db()
         return get_prefs()
 
 def update_prefs(prefs: dict) -> dict:
