@@ -92,7 +92,12 @@ def get_album_data_from_source(album:dict, resp:dict) -> list[Song]:
         json_resp = {}
 
         if source == global_constants.__discogs__():
-            album_cover = resp.get('images', "N/A").get(0, "N/A").get('uri', "N/A")
+            imgs = resp.get('images', "N/A")
+            if isinstance(imgs, list):
+                album_cover = imgs[0].get('uri', "N/A")
+            else:
+                album_cover = "N/A"
+
             genre = resp['styles'][0] if len(resp['styles']) > 1 else resp['genres'][0]
             release = album.get('release_date', "N/A")
             track_str = 'title'
