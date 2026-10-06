@@ -27,7 +27,6 @@ _track_struct = namedtuple("track", "path file")
 __track:_track_struct = None
 odnologger = logger()
 
-#TODO: use cache where applicable
 __cache = odno_cache.get_cache()
 
 def check_album(album:dict, platform:str) -> dict:
@@ -93,20 +92,30 @@ def get_album_data_from_source(album:dict, resp:dict) -> list[Song]:
         json_resp = {}
 
         if source == global_constants.__discogs__():
-            album_cover = resp['images'][0]['uri']
+            album_cover = resp.get('images', "N/A").get(0, "N/A").get('uri', "N/A")
             genre = resp['styles'][0] if len(resp['styles']) > 1 else resp['genres'][0]
-            release = album['release_date']
+            release = album.get('release_date', "N/A")
             track_str = 'title'
             json_resp = resp['tracklist']
 
         else:
             if len(resp['album']['image']) > 0:
-                album_cover = resp['album']['image'][3]["#text"]
+                size = len(resp['album']['image'])
+                if size - 1 < 0:
+                    album_cover = "N/A"
+
+                album_cover = resp['album']['image'][size - 1].get("#text", "N/A")
 
             if resp['album']["tags"] != "":
-                genre = resp['album']["tags"]["tag"][0]["name"]
+                tag = resp['album']['tags']['tag']
+                if isinstance(tag, list):
+                    genre = tag[0].get('name', "N/A")
+                elif isinstance(tag, dict):
+                    genre = tag.get(0, {'name': "N/A"}).get('name', "N/A")
+                else:
+                    genre = "N/A"
 
-            release = album['release_date']
+            release = album.get('release_date', "N/A")
             track_str = 'name'
             json_resp = resp['album']['tracks']['track']
 
