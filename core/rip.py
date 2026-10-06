@@ -38,7 +38,8 @@ def init_device() -> None:
 
     except (OSError, cdio.NoDriverError, cdio.DeviceException) as e:
         msg = "No drive found..."
-        odnologger.log(log_level="ERROR", msg=msg, e=e, module_name="rip.init_device")
+        if(not isinstance(e, OSError)):
+            odnologger.log(log_level="ERROR", msg=msg, e=e, module_name="rip.init_device")
         print(msg)
 
 def __process_tracks(track:str, raw_audio:bytes):
@@ -116,7 +117,7 @@ def rip() -> bool:
     mpath = __cache.get("MUSIC_PATH", os.path.expanduser("~") + "/Music")
 
     if os.path.isdir(mpath):
-        __cache["mpath"] = mpath
+        __cache["MUSIC_PATH"] = mpath
 
     album = util.clean_input_str("\nenter album name: ")
     artist = util.clean_input_str("enter artist name: ")

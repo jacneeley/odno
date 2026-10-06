@@ -110,7 +110,7 @@ def install_dependencies() -> None:
     __install_ffmpeg()
 
 def __create_project_dirs() -> None:
-    from odno.src.global_constants import __project_root__
+    from src.global_constants import __project_root__
 
     root = __project_root__()
     logs = f"{root}/.logs"

@@ -8,6 +8,13 @@ class OdnoCache:
         self.odno_cache = kwargs.get("odno_cache", {})
 
     def get_cache(self) -> dict:
+        '''Get instance of Odno Cache'''
+        prefs = get_prefs()
+        if "MUSIC_PATH" in prefs:
+            self.odno_cache["MUSIC_PATH"] = prefs["MUSIC_PATH"]
+        if "DISK" in prefs:
+            self.odno_cache["DISK"] = prefs["DISK"]
+            
         return self.odno_cache
     
     def init_cache(self) -> None:

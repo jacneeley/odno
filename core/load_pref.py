@@ -61,6 +61,7 @@ def get_prefs() -> dict:
         print("first init. installing dependencies...")
         init_db()
         install_dependencies()
+        return get_prefs()
 
 def update_prefs(prefs: dict) -> dict:
     '''update user preferences'''
